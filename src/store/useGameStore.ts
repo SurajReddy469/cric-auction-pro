@@ -87,7 +87,7 @@ export interface GameStoreState {
 
   // Career & Profile
   profile: ManagerProfile;
-  setManagerProfile: (name: string, avatar?: string) => void;
+  setManagerProfile: (name: string) => void;
   achievements: Achievement[];
   settings: GameSettings;
 
@@ -556,12 +556,11 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     activeScorecardMatch: null,
 
     profile: StorageService.loadProfile(),
-    setManagerProfile: (name: string, avatar?: string) => {
+    setManagerProfile: (name: string) => {
       const cleanName = name.trim() || 'Vikram Sengupta';
       const updatedProfile: ManagerProfile = {
         ...get().profile,
         name: cleanName,
-        avatar: avatar || get().profile.avatar || 'tactician'
       };
       set({ profile: updatedProfile });
       StorageService.saveProfile(updatedProfile);

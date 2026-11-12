@@ -1,6 +1,5 @@
 export interface ManagerProfile {
   name: string;
-  avatar: string;
   reputation: number; // 1-100
   totalSeasons: number;
   trophies: number;
