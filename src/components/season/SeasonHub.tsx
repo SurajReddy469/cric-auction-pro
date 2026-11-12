@@ -12,8 +12,7 @@ import {
   FastForward, 
   Calendar, 
   Flame,
-  Radio,
-  Sparkles
+  Radio
 } from 'lucide-react';
 
 export const SeasonHub: React.FC = () => {
@@ -60,10 +59,6 @@ export const SeasonHub: React.FC = () => {
         {/* Header Bar */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 sm:pb-6 border-b border-slate-200 mb-4 sm:mb-6">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-amber-100 border border-amber-300 px-3 py-1 text-xs font-black text-amber-900 mb-1.5 uppercase tracking-wider shadow-sm">
-              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-              <span>IPL 2026 Championship Campaign</span>
-            </div>
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
               TOURNAMENT <span className="text-gold-gradient">ARENA</span>
             </h1>
@@ -118,11 +113,6 @@ export const SeasonHub: React.FC = () => {
               <span className="text-amber-800 flex items-center gap-1.5 uppercase tracking-wider text-[11px] sm:text-xs font-black">
                 <Flame className="w-4 h-4 text-amber-600" />
                 UPCOMING FIXTURE • {nextMatch.dateStr}
-                {isUserPlayingNext && (
-                  <span className="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black text-[10px]">
-                    YOUR MATCH
-                  </span>
-                )}
               </span>
               <span className="text-slate-500 text-[10px] sm:text-xs truncate max-w-[140px] sm:max-w-none">{nextMatch.venue}</span>
             </div>

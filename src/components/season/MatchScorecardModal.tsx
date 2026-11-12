@@ -46,10 +46,6 @@ export const MatchScorecardModal: React.FC = () => {
               </div>
             </div>
 
-            <span className="text-xs font-black text-slate-400 uppercase tracking-widest px-3 py-1 rounded-full bg-white border border-slate-200">
-              VS
-            </span>
-
             {/* Team 2 Score */}
             <div className="flex items-center gap-3 text-right">
               <div>
@@ -85,7 +81,7 @@ export const MatchScorecardModal: React.FC = () => {
                 </span>
               </div>
             </div>
-            <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-800 font-mono font-black text-xs border border-amber-300">
+            <span className="text-amber-800 font-mono font-black text-xs">
               {match.playerOfTheMatch.performance}
             </span>
           </div>

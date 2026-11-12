@@ -9,7 +9,6 @@ import confetti from 'canvas-confetti';
 import { 
   Play, 
   FastForward, 
-  Trophy
 } from 'lucide-react';
 
 interface LiveMatchArenaModalProps {
@@ -228,10 +227,6 @@ export const LiveMatchArenaModal: React.FC<LiveMatchArenaModalProps> = ({
             animate={{ scale: 1, opacity: 1 }}
             className="rounded-3xl bg-amber-50 border border-amber-300 p-4 sm:p-5 text-center shadow-md"
           >
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider mb-2">
-              <Trophy className="w-3.5 h-3.5" />
-              <span>MATCH RESULT</span>
-            </div>
             <h3 className="text-lg sm:text-2xl font-black text-slate-900">
               {completedMatch.margin ? `${completedMatch.winnerTeamId === homeTeam.id ? homeTeam.name : awayTeam.name} ${completedMatch.margin}` : 'Match Completed!'}
             </h3>

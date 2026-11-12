@@ -58,9 +58,6 @@ export const MainAuctionScreen: React.FC = () => {
       {/* On-Deck / Next Lots Queue (Referenced from playauctiongame.com) */}
       <div className="rounded-2xl bg-white border border-slate-200/90 p-2.5 px-3.5 shadow-sm flex items-center justify-between gap-3 overflow-hidden text-xs">
         <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md">
-            ON DECK
-          </span>
           <span className="text-[11px] font-bold text-slate-600 hidden xs:inline">Next Lots:</span>
         </div>
 
@@ -198,20 +195,6 @@ export const MainAuctionScreen: React.FC = () => {
                 </span>
               </div>
 
-              {/* Phase Pill */}
-              <span className={`px-2 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider ${
-                auction.phase === 'going_twice'
-                  ? 'bg-rose-500 text-white animate-pulse'
-                  : auction.phase === 'going_once'
-                  ? 'bg-amber-500 text-slate-950 animate-pulse'
-                  : 'bg-emerald-50 text-emerald-800 border border-emerald-300'
-              }`}>
-                {auction.phase === 'going_twice'
-                  ? '⚠️ 2ND CALL'
-                  : auction.phase === 'going_once'
-                  ? '1ST CALL'
-                  : 'ACTIVE'}
-              </span>
             </div>
           </div>
 

@@ -74,7 +74,7 @@ export const LiveBiddingBoard: React.FC = () => {
                 <div className="text-right flex-shrink-0">
                   {isHighestBidder ? (
                     <div className="flex flex-col items-end">
-                      <span className="px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black text-xs font-mono shadow-sm animate-pulse">
+                      <span className="text-amber-700 font-black text-xs font-mono">
                         ₹{auction.currentBid.toFixed(2)} Cr
                       </span>
                       <span className="text-[9px] font-black text-amber-800 uppercase tracking-wider mt-0.5">

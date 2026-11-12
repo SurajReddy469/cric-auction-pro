@@ -282,12 +282,6 @@ export const IPLSessionModal: React.FC = () => {
                             <span className="font-black text-base text-slate-900 truncate">
                               {sess.name}
                             </span>
-                            {isActive && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                Active
-                              </span>
-                            )}
                           </div>
 
                           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 font-semibold">

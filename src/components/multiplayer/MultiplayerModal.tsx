@@ -25,15 +25,17 @@ export const MultiplayerModal: React.FC = () => {
   } = useGameStore();
 
   const [tab, setTab] = useState<'create' | 'join'>('create');
-  const [playerName, setPlayerName] = useState(profile.name || 'Manager');
+  const [playerName, setPlayerName] = useState(profile.name || 'Vikram Sengupta');
   const [roomName, setRoomName] = useState('IPL Live War Room');
   const [requiredPlayers, setRequiredPlayers] = useState<number>(2);
   const [roomCodeInput, setRoomCodeInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (isMultiplayerModalOpen) setPlayerName(profile.name || 'Manager');
-  }, [isMultiplayerModalOpen, profile.name]);
+    if (isMultiplayerModalOpen && !playerName) {
+      setPlayerName(profile.name || 'Vikram Sengupta');
+    }
+  }, [isMultiplayerModalOpen, profile.name, playerName]);
 
   if (!isMultiplayerModalOpen) return null;
 
@@ -45,7 +47,7 @@ export const MultiplayerModal: React.FC = () => {
 
     const success = await createMultiplayerRoom({
       roomName: roomName.trim() || 'IPL Multiplayer Room',
-      playerName: playerName.trim() || 'Host Manager',
+      playerName: playerName.trim() || 'Vikram Sengupta',
       requiredPlayers: Number(requiredPlayers),
       purseCap: 120,
     });
@@ -66,7 +68,7 @@ export const MultiplayerModal: React.FC = () => {
 
     const success = await joinMultiplayerRoom(
       roomCodeInput.trim().toUpperCase(),
-      playerName.trim() || 'Guest Manager'
+      playerName.trim() || 'Vikram Sengupta'
     );
 
     setIsSubmitting(false);
@@ -172,7 +174,7 @@ export const MultiplayerModal: React.FC = () => {
                     required
                     value={playerName}
                     onChange={(e) => setPlayerName(e.target.value)}
-                    placeholder="Enter your name"
+                    placeholder="Vikram Sengupta"
                     className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-400/20"
                   />
                 </div>
@@ -242,7 +244,7 @@ export const MultiplayerModal: React.FC = () => {
                     required
                     value={playerName}
                     onChange={(e) => setPlayerName(e.target.value)}
-                    placeholder="Enter your name"
+                    placeholder="Vikram Sengupta"
                     className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-400/20"
                   />
                 </div>

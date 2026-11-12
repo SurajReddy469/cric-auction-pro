@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useGameStore } from '../../store/useGameStore';
 import { TeamBadge } from '../common/TeamBadge';
 import { soundService } from '../../services/soundService';
-import { MapPin, ArrowRight, Trophy, Flame } from 'lucide-react';
+import { MapPin, ArrowRight, Trophy } from 'lucide-react';
 
 export const TeamSelection: React.FC = () => {
   const { 
@@ -48,10 +48,6 @@ export const TeamSelection: React.FC = () => {
       {/* Game Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
         <div>
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 border border-amber-300 px-3 py-1 text-[11px] font-black text-amber-900 uppercase tracking-wider shadow-sm">
-            <Flame className="w-3.5 h-3.5 text-amber-600" />
-            <span>FRANCHISE SELECT SCREEN</span>
-          </div>
           <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight mt-1">
             SELECT YOUR <span className="text-gold-gradient">IPL FRANCHISE</span>
           </h1>

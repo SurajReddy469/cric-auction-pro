@@ -7,7 +7,6 @@ import {
   Users,
   Copy,
   Check,
-  ShieldCheck,
   Sparkles,
   ArrowLeft,
   Play,
@@ -96,13 +95,7 @@ export const MultiplayerLobby: React.FC = () => {
             </button>
 
             <div>
-              <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-emerald-400/10 border border-emerald-400/20 text-emerald-300 text-xs font-black uppercase tracking-wider">
-                  <ShieldCheck className="h-3.5 w-3.5" />
-                  Human-Only Match
-                </span>
-                <span className="text-xs font-bold text-slate-400">Strictly 0 Bots</span>
-              </div>
+              <p className="mb-1.5 text-xs font-bold text-slate-400">Strictly 0 Bots</p>
               <h1 className="text-2xl font-black text-white sm:text-3xl tracking-tight">
                 {roomName}
               </h1>
@@ -207,11 +200,6 @@ export const MultiplayerLobby: React.FC = () => {
                         <span className="font-black text-sm text-slate-900 truncate">
                           {p.name} {isMe && '(You)'}
                         </span>
-                        {p.isHost && (
-                          <span className="px-1.5 py-0.2 rounded bg-amber-200 text-amber-900 text-[9px] font-black uppercase">
-                            Host
-                          </span>
-                        )}
                       </div>
                       <div className="text-xs font-semibold text-slate-500 truncate">
                         {claimedTeam ? claimedTeam.name : 'Choosing franchise...'}
@@ -219,18 +207,6 @@ export const MultiplayerLobby: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="shrink-0 text-right">
-                    {p.isReady ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase tracking-wider">
-                        <Check className="h-3 w-3 stroke-[3]" />
-                        Ready
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider">
-                        Waiting
-                      </span>
-                    )}
-                  </div>
                 </div>
               );
             })}

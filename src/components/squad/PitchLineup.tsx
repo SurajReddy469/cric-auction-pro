@@ -32,9 +32,6 @@ export const PitchLineup: React.FC<PitchLineupProps> = ({ players, onRemoveFromX
         <span className="flex items-center gap-1.5 uppercase tracking-wider drop-shadow">
           🏏 PLAYING XI FORMATION
         </span>
-        <span className="font-mono bg-emerald-950/40 px-2 sm:px-2.5 py-0.5 rounded-full border border-white/20 text-[10px] sm:text-xs">
-          {players.length}/11 Selected
-        </span>
       </div>
 
       {/* Visual Players Formation on Pitch */}
