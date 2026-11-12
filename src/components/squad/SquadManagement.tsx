@@ -73,9 +73,6 @@ export const SquadManagement: React.FC = () => {
                   Roster Operations
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5 sm:mt-1">
-                Configure your Starting XI, optimize tactical chemistry, and prepare for the league campaign.
-              </p>
             </div>
           </div>
 

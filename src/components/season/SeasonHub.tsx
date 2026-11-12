@@ -67,9 +67,6 @@ export const SeasonHub: React.FC = () => {
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
               TOURNAMENT <span className="text-gold-gradient">ARENA</span>
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5">
-              56-match IPL tournament • Top 4 qualify for Playoffs (Q1, Eliminator, Q2 & Final)
-            </p>
           </div>
 
           {/* Action Simulation Buttons */}
