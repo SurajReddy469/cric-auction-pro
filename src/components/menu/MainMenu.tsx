@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useGameStore } from '../../store/useGameStore';
 import { TeamBadge } from '../common/TeamBadge';
 import { soundService } from '../../services/soundService';
+import { IPLFloatingButton } from '../session/IPLFloatingButton';
 import {
   ArrowUpRight,
   CalendarDays,
@@ -12,6 +13,7 @@ import {
   Flame,
   Gauge,
   Play,
+  Plus,
   Settings2,
   Shield,
   Sparkles,
@@ -38,8 +40,12 @@ export const MainMenu: React.FC = () => {
     players,
     leagueMatches,
     currentMatchIndex,
+    sessions,
+    activeSessionId,
+    setSessionModalOpen,
   } = useGameStore();
 
+  const activeSession = sessions.find((s) => s.id === activeSessionId) || sessions[0];
   const team = userTeam();
   const isAuctionActive = auction.phase !== 'idle' && auction.phase !== 'completed';
   const isAuctionFinished = auction.phase === 'completed';
@@ -114,12 +120,37 @@ export const MainMenu: React.FC = () => {
 
         <div className="grid gap-8 p-5 sm:p-8 lg:grid-cols-[1.35fr_0.65fr] lg:items-end lg:p-11">
           <div>
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-amber-300/25 bg-amber-300/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-amber-200 sm:text-xs">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-300 opacity-60" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-300" />
-              </span>
-              The franchise owner’s desk
+            <div className="mb-5 flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-2 rounded-full border border-amber-300/25 bg-amber-300/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-amber-200 sm:text-xs">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-300 opacity-60" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-300" />
+                </span>
+                The franchise owner’s desk
+              </div>
+
+              {/* Active IPL Session Badge */}
+              <button
+                type="button"
+                onClick={() => {
+                  soundService.playClick();
+                  setSessionModalOpen(true);
+                }}
+                className="group inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-slate-900/80 hover:bg-slate-900 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-amber-300 transition-all hover:border-amber-300"
+                title="Manage IPL sessions"
+              >
+                <Sparkles className="h-3 w-3 fill-current text-amber-400" />
+                <span className="text-slate-400">Session:</span>
+                <span className="truncate max-w-[120px] sm:max-w-[180px] text-white">
+                  {activeSession?.name || 'IPL 2025 Mega'}
+                </span>
+                <span className="px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 text-[9px]">
+                  #{activeSession?.roomCode || 'JDLJ77'}
+                </span>
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-slate-950 font-black group-hover:rotate-90 transition-transform">
+                  <Plus className="h-2.5 w-2.5 stroke-[3]" />
+                </span>
+              </button>
             </div>
             <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
               Welcome back, {profile.name || 'Manager'}
@@ -271,6 +302,9 @@ export const MainMenu: React.FC = () => {
         <span>Cric-Auction Pro · Franchise cricket, your way.</span>
         <button onClick={() => { soundService.playClick(); setSettingsOpen(true); }} className="font-bold text-slate-600 transition hover:text-amber-800">Audio, appearance & game settings</button>
       </footer>
+
+      {/* Floating '+' Action Button for creating IPL sessions */}
+      <IPLFloatingButton />
     </div>
   );
 };

@@ -8,6 +8,7 @@ import { SquadManagement } from './components/squad/SquadManagement';
 import { SeasonHub } from './components/season/SeasonHub';
 import { AdminPanel } from './components/admin/AdminPanel';
 import { SettingsModal } from './components/menu/SettingsModal';
+import { IPLSessionModal } from './components/session/IPLSessionModal';
 
 export const App: React.FC = () => {
   const { currentScreen } = useGameStore();
@@ -40,6 +41,9 @@ export const App: React.FC = () => {
 
       {/* Global Settings Modal */}
       <SettingsModal />
+
+      {/* IPL Session Creator & Manager Modal */}
+      <IPLSessionModal />
     </div>
   );
 };

@@ -4,6 +4,7 @@ import { Team, AIPersonality } from '../types/team';
 import { AuctionState, BidRecord, AuctionFeedMessage } from '../types/auction';
 import { Match, LeagueStanding, SeasonAwards } from '../types/season';
 import { ManagerProfile, Achievement } from '../types/career';
+import { IPLSession, CreateSessionInput } from '../types/session';
 import { REAL_IPL_TEAMS, FICTIONAL_TEAMS, INITIAL_TEAMS } from '../data/teams';
 import { REAL_IPL_PLAYERS, FICTIONAL_PLAYERS, INITIAL_PLAYERS } from '../data/players';
 import { INITIAL_ACHIEVEMENTS } from '../data/achievements';
@@ -62,6 +63,16 @@ export interface GameStoreState {
   isAuctionSummaryOpen: boolean;
   isMatchModalOpen: boolean;
   isTrophyModalOpen: boolean;
+  isSessionModalOpen: boolean;
+  setSessionModalOpen: (open: boolean) => void;
+
+  // IPL Multi-Session Management
+  sessions: IPLSession[];
+  activeSessionId: string;
+  createSession: (input: CreateSessionInput) => string;
+  switchSession: (sessionId: string) => void;
+  deleteSession: (sessionId: string) => void;
+  duplicateSession: (sessionId: string) => void;
 
   // Actions
   selectTeam: (teamId: string) => void;
@@ -137,6 +148,9 @@ if (typeof document !== 'undefined') {
 
 // Check saved active campaign (Fixes Issue 11)
 const savedCampaign = StorageService.loadCampaign();
+const savedSessions = StorageService.loadSessions();
+const savedActiveSessionId = StorageService.loadActiveSessionId();
+
 const initialDatasetMode = initialSettings.dataset || 'real';
 const fallbackTeams = initialDatasetMode === 'fictional' ? FICTIONAL_TEAMS : INITIAL_TEAMS;
 const fallbackPlayers = initialDatasetMode === 'fictional' ? FICTIONAL_PLAYERS : INITIAL_PLAYERS;
@@ -161,6 +175,32 @@ const initialAuctionState: AuctionState = savedCampaign?.auction || {
   auctionHistory: [],
 };
 
+const defaultInitialSession: IPLSession = {
+  id: 'session_default_ipl_2025',
+  name: 'IPL 2025 Mega Auction',
+  roomCode: 'JDLJ77',
+  format: 'mega',
+  purseCap: initialSettings.startingPurse || 120,
+  createdAt: Date.now(),
+  lastPlayedAt: Date.now(),
+  seasonYear: 2025,
+  aiAggression: initialSettings.aiAggression || 'balanced',
+  timerSpeed: initialSettings.timerSpeed || 'standard',
+  userTeamId: initialUserTeamId,
+  currentScreen: (savedCampaign?.currentScreen as GameScreen) || 'menu',
+  teams: JSON.parse(JSON.stringify(initialTeamsSource)),
+  players: JSON.parse(JSON.stringify(initialPlayersSource)),
+  auction: initialAuctionState,
+  leagueMatches: savedCampaign?.leagueMatches || [],
+  currentMatchIndex: savedCampaign?.currentMatchIndex || 0,
+  standings: savedCampaign?.standings || [],
+  playoffMatches: savedCampaign?.playoffMatches || [],
+  playoffStage: savedCampaign?.playoffStage || 'not_started',
+};
+
+const initialSessionsList: IPLSession[] = savedSessions.length > 0 ? savedSessions : [defaultInitialSession];
+const activeSessionCandidate = initialSessionsList.find(s => s.id === savedActiveSessionId) || initialSessionsList[0];
+
 export const useGameStore = create<GameStoreState>((set, get) => {
   // Helper to persist campaign state to localStorage (Fixes Issue 11)
   const saveCampaignState = (override: Partial<GameStoreState> = {}) => {
@@ -178,6 +218,30 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       currentScreen: s.currentScreen,
       timestamp: Date.now(),
     });
+
+    // Update active session snapshot
+    const currentActiveId = s.activeSessionId || activeSessionCandidate.id;
+    const updatedSessions = s.sessions.map(sess => {
+      if (sess.id === currentActiveId) {
+        return {
+          ...sess,
+          lastPlayedAt: Date.now(),
+          userTeamId: s.userTeamId,
+          teams: s.teams,
+          players: s.players,
+          auction: s.auction,
+          leagueMatches: s.leagueMatches,
+          currentMatchIndex: s.currentMatchIndex,
+          standings: s.standings,
+          playoffMatches: s.playoffMatches,
+          playoffStage: s.playoffStage,
+          currentScreen: s.currentScreen,
+        };
+      }
+      return sess;
+    });
+    StorageService.saveSessions(updatedSessions);
+    StorageService.saveActiveSessionId(currentActiveId);
   };
 
   return {
@@ -191,6 +255,188 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     teams: JSON.parse(JSON.stringify(initialTeamsSource)),
     players: JSON.parse(JSON.stringify(initialPlayersSource)),
     userTeam: () => get().teams.find(t => t.id === get().userTeamId),
+
+    // Multi-Session Management
+    sessions: initialSessionsList,
+    activeSessionId: activeSessionCandidate.id,
+    isSessionModalOpen: false,
+    setSessionModalOpen: (open: boolean) => set({ isSessionModalOpen: open }),
+
+    createSession: (input: CreateSessionInput) => {
+      const newId = `session_${Date.now()}`;
+      const roomCode = (input.roomCode || `IPL${Math.floor(1000 + Math.random() * 9000)}`).toUpperCase();
+      const startingPurse = input.purseCap || (input.format === 'mini' ? 60 : input.format === 'turbo' ? 90 : 120);
+
+      const datasetTeams = get().settings.dataset === 'fictional' ? FICTIONAL_TEAMS : REAL_IPL_TEAMS;
+      const datasetPlayers = get().settings.dataset === 'fictional' ? FICTIONAL_PLAYERS : REAL_IPL_PLAYERS;
+
+      const newTeams: Team[] = JSON.parse(JSON.stringify(datasetTeams)).map((t: Team) => ({
+        ...t,
+        startingPurse,
+        currentPurse: startingPurse,
+        squad: [],
+      }));
+
+      const newPlayers: Player[] = JSON.parse(JSON.stringify(datasetPlayers)).map((p: Player) => ({
+        ...p,
+        isSold: false,
+        isUnsold: false,
+        soldPrice: undefined,
+        currentTeamId: undefined,
+        isScouted: false,
+      }));
+
+      const userTeamId = input.preSelectedTeamId || newTeams[0].id;
+      const timerSpeed = input.timerSpeed || (input.format === 'turbo' ? 'fast' : 'standard');
+      const timerSeconds = timerSpeed === 'fast' ? 5 : timerSpeed === 'slow' ? 15 : 10;
+      const aiAggression = input.aiAggression || (input.format === 'turbo' ? 'ruthless' : 'balanced');
+
+      const freshAuction: AuctionState = {
+        currentSetIndex: 0,
+        currentPlayerIndex: 0,
+        currentPlayer: null,
+        currentBid: 0,
+        highestBidderId: null,
+        highestBidderName: null,
+        bidHistory: [],
+        phase: 'idle',
+        timerSeconds,
+        isPaused: false,
+        totalPlayersAuctioned: 0,
+        feedMessages: [
+          {
+            id: `msg_${Date.now()}`,
+            timestamp: Date.now(),
+            text: `IPL Session "${input.name}" initialized with Room Code #${roomCode}. Purse: ₹${startingPurse} Cr.`,
+            type: 'system',
+          }
+        ],
+        auctionHistory: [],
+      };
+
+      const newSession: IPLSession = {
+        id: newId,
+        name: input.name,
+        roomCode,
+        format: input.format,
+        purseCap: startingPurse,
+        createdAt: Date.now(),
+        lastPlayedAt: Date.now(),
+        seasonYear: input.seasonYear || 2025,
+        aiAggression,
+        timerSpeed,
+        userTeamId,
+        currentScreen: 'teams',
+        teams: newTeams,
+        players: newPlayers,
+        auction: freshAuction,
+        leagueMatches: [],
+        currentMatchIndex: 0,
+        standings: [],
+        playoffMatches: [],
+        playoffStage: 'not_started',
+      };
+
+      const updatedSessions = [newSession, ...get().sessions];
+      set({
+        sessions: updatedSessions,
+        activeSessionId: newId,
+        userTeamId,
+        teams: newTeams,
+        players: newPlayers,
+        auction: freshAuction,
+        leagueMatches: [],
+        currentMatchIndex: 0,
+        standings: [],
+        playoffMatches: [],
+        playoffStage: 'not_started',
+        championTeam: null,
+        seasonAwards: null,
+        currentScreen: 'teams',
+        isSessionModalOpen: false,
+      });
+
+      StorageService.saveSessions(updatedSessions);
+      StorageService.saveActiveSessionId(newId);
+      saveCampaignState();
+
+      try {
+        const channel = new BroadcastChannel('cric_auction_sync');
+        channel.postMessage({ type: 'SESSION_SWITCHED', payload: { sessionId: newId, roomCode, name: input.name } });
+        channel.close();
+      } catch {}
+
+      return newId;
+    },
+
+    switchSession: (sessionId: string) => {
+      const target = get().sessions.find(s => s.id === sessionId);
+      if (!target) return;
+
+      const updatedSessions = get().sessions.map(s =>
+        s.id === sessionId ? { ...s, lastPlayedAt: Date.now() } : s
+      );
+
+      set({
+        sessions: updatedSessions,
+        activeSessionId: target.id,
+        userTeamId: target.userTeamId || target.teams[0]?.id || 'chennai-super-kings',
+        teams: JSON.parse(JSON.stringify(target.teams)),
+        players: JSON.parse(JSON.stringify(target.players)),
+        auction: JSON.parse(JSON.stringify(target.auction)),
+        leagueMatches: JSON.parse(JSON.stringify(target.leagueMatches)),
+        currentMatchIndex: target.currentMatchIndex,
+        standings: JSON.parse(JSON.stringify(target.standings)),
+        playoffMatches: JSON.parse(JSON.stringify(target.playoffMatches)),
+        playoffStage: target.playoffStage,
+        currentScreen: (target.currentScreen as GameScreen) || 'menu',
+        isSessionModalOpen: false,
+      });
+
+      StorageService.saveSessions(updatedSessions);
+      StorageService.saveActiveSessionId(target.id);
+      saveCampaignState();
+
+      try {
+        const channel = new BroadcastChannel('cric_auction_sync');
+        channel.postMessage({ type: 'SESSION_SWITCHED', payload: { sessionId: target.id, roomCode: target.roomCode, name: target.name } });
+        channel.close();
+      } catch {}
+    },
+
+    deleteSession: (sessionId: string) => {
+      const currentList = get().sessions;
+      if (currentList.length <= 1) {
+        alert('You must have at least one active IPL session.');
+        return;
+      }
+      const updated = currentList.filter(s => s.id !== sessionId);
+      if (get().activeSessionId === sessionId) {
+        get().switchSession(updated[0].id);
+      }
+      set({ sessions: updated });
+      StorageService.saveSessions(updated);
+    },
+
+    duplicateSession: (sessionId: string) => {
+      const target = get().sessions.find(s => s.id === sessionId);
+      if (!target) return;
+
+      const newId = `session_${Date.now()}`;
+      const newRoomCode = `IPL${Math.floor(1000 + Math.random() * 9000)}`;
+      const cloned: IPLSession = {
+        ...JSON.parse(JSON.stringify(target)),
+        id: newId,
+        name: `${target.name} (Copy)`,
+        roomCode: newRoomCode,
+        createdAt: Date.now(),
+        lastPlayedAt: Date.now(),
+      };
+
+      const updated = [cloned, ...get().sessions];
+      set({ sessions: updated });
+      StorageService.saveSessions(updated);
+    },
 
     auction: initialAuctionState,
     selectedScoutPlayer: null,
@@ -1325,7 +1571,12 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         activeScorecardMatch: null,
         profile: defaultProf,
         achievements: INITIAL_ACHIEVEMENTS,
+        sessions: [defaultInitialSession],
+        activeSessionId: defaultInitialSession.id,
+        isSessionModalOpen: false,
       });
+      StorageService.saveSessions([defaultInitialSession]);
+      StorageService.saveActiveSessionId(defaultInitialSession.id);
     },
 
     setSettingsOpen: (open: boolean) => set({ isSettingsOpen: open }),

@@ -3,12 +3,15 @@ import { Team } from '../types/team';
 import { Player } from '../types/player';
 import { AuctionState } from '../types/auction';
 import { Match, LeagueStanding, PlayoffStage } from '../types/season';
+import { IPLSession } from '../types/session';
 
 const PROFILE_KEY = 'cric_auction_manager_profile';
 const ACHIEVEMENTS_KEY = 'cric_auction_achievements';
 const SETTINGS_KEY = 'cric_auction_settings';
 const CAREER_KEY = 'cric_auction_career_data';
 const CAMPAIGN_KEY = 'cric_auction_active_campaign';
+const SESSIONS_KEY = 'cric_auction_ipl_sessions';
+const ACTIVE_SESSION_ID_KEY = 'cric_auction_active_session_id';
 
 export interface GameSettings {
   timerSpeed: 'slow' | 'standard' | 'fast';
@@ -155,5 +158,45 @@ export class StorageService {
     localStorage.removeItem(SETTINGS_KEY);
     localStorage.removeItem(CAREER_KEY);
     localStorage.removeItem(CAMPAIGN_KEY);
+    localStorage.removeItem(SESSIONS_KEY);
+    localStorage.removeItem(ACTIVE_SESSION_ID_KEY);
+  }
+
+  // IPL Multi-Session Management
+  static loadSessions(): IPLSession[] {
+    try {
+      const data = localStorage.getItem(SESSIONS_KEY);
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.warn('Failed to load IPL sessions', e);
+    }
+    return [];
+  }
+
+  static saveSessions(sessions: IPLSession[]) {
+    try {
+      localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
+    } catch (e) {
+      console.warn('Failed to save IPL sessions', e);
+    }
+  }
+
+  static loadActiveSessionId(): string | null {
+    try {
+      return localStorage.getItem(ACTIVE_SESSION_ID_KEY);
+    } catch {
+      return null;
+    }
+  }
+
+  static saveActiveSessionId(id: string) {
+    try {
+      localStorage.setItem(ACTIVE_SESSION_ID_KEY, id);
+    } catch (e) {
+      console.warn('Failed to save active session ID', e);
+    }
   }
 }
