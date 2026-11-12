@@ -242,7 +242,7 @@ export const StartPage: React.FC = () => {
                 maxLength={32}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Vikram Sengupta"
-                className="w-full rounded-xl border-2 border-white/15 bg-slate-900/90 pl-11 pr-10 py-2.5 sm:py-3 text-sm sm:text-base font-extrabold text-white placeholder:text-slate-400/80 placeholder:font-medium outline-none transition focus:border-amber-400 focus:ring-4 focus:ring-amber-400/20 shadow-inner"
+                className="w-full rounded-xl border-2 border-white/15 bg-slate-900/90 pl-11 pr-10 py-2.5 sm:py-3 text-base sm:text-lg font-extrabold text-white placeholder:text-slate-400/80 placeholder:font-medium outline-none transition focus:border-amber-400 focus:ring-4 focus:ring-amber-400/20 shadow-inner"
               />
               {name.length > 0 && (
                 <button
@@ -340,7 +340,7 @@ export const StartPage: React.FC = () => {
                     <TeamBadge teamId={selectedTeam.id} size="md" />
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="truncate text-sm sm:text-base font-black text-white">{effectiveName}</span>
+                        <span className="truncate text-base sm:text-lg font-black text-white">{effectiveName}</span>
                         {selectedTeam.trophies > 0 ? (
                           <span className="rounded bg-amber-400/20 px-1.5 py-0.5 text-[9px] font-black uppercase text-amber-300 border border-amber-400/40 flex items-center gap-1">
                             <Trophy className="h-2.5 w-2.5 fill-current text-amber-400" />
