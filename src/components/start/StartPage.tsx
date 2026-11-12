@@ -10,7 +10,6 @@ import {
   Radio, 
   UserRound, 
   Trophy, 
-  Sparkles, 
   IdCard, 
   Check, 
   Flame, 
@@ -47,7 +46,11 @@ export const StartPage: React.FC = () => {
     setScreen,
   } = useGameStore();
 
-  const [name, setName] = useState(profile.name || 'Vikram Sengupta');
+  const [name, setName] = useState(
+    profile.name && profile.name !== 'Vikram Sengupta' && profile.name !== 'Manager'
+      ? profile.name
+      : ''
+  );
   const [avatarId, setAvatarId] = useState(profile.avatar || 'tactician');
   const [selectedTeamId, setSelectedTeamId] = useState(userTeamId || 'chennai-super-kings');
   const [tab, setTab] = useState<'create' | 'login'>('create');
@@ -61,9 +64,10 @@ export const StartPage: React.FC = () => {
   const activeAvatar = MANAGER_AVATARS.find(a => a.id === avatarId) || MANAGER_AVATARS[0];
   const isExistingCampaignActive = (auction.phase !== 'idle' && auction.phase !== 'completed') || leagueMatches.length > 0;
   const purseCap = format === 'mini' ? 60 : format === 'turbo' ? 90 : 120;
+  const effectiveName = name.trim() || 'Vikram Sengupta';
 
   const saveProfileData = () => {
-    const finalName = name.trim() || 'Manager';
+    const finalName = name.trim() || 'Vikram Sengupta';
     setManagerProfile(finalName, avatarId);
     selectTeam(selectedTeamId);
   };
@@ -82,6 +86,7 @@ export const StartPage: React.FC = () => {
   const handleCreate = async (event: React.FormEvent) => {
     event.preventDefault();
     soundService.playClick();
+    const finalName = name.trim() || 'Vikram Sengupta';
     saveProfileData();
     setMultiplayerError(null);
 
@@ -100,7 +105,7 @@ export const StartPage: React.FC = () => {
     setIsSubmitting(true);
     const success = await createMultiplayerRoom({
       roomName: sessionName.trim() || 'My IPL Room',
-      playerName: name.trim() || 'Manager',
+      playerName: finalName,
       requiredPlayers: 2,
       purseCap,
     });
@@ -115,7 +120,8 @@ export const StartPage: React.FC = () => {
     saveProfileData();
     setMultiplayerError(null);
     setIsSubmitting(true);
-    const success = await joinMultiplayerRoom(roomCode.trim().toUpperCase(), name.trim() || 'Manager');
+    const finalName = name.trim() || 'Vikram Sengupta';
+    const success = await joinMultiplayerRoom(roomCode.trim().toUpperCase(), finalName);
     setIsSubmitting(false);
     if (!success) soundService.playBuzzer();
   };
@@ -161,13 +167,7 @@ export const StartPage: React.FC = () => {
         {/* Card Content Wrapper */}
         <div className="p-5 sm:p-8 space-y-6">
           
-          {/* Header Title with Official League Badge */}
           <div className="text-center space-y-2">
-            <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-amber-400/10 px-3.5 py-1 text-[11px] font-black uppercase tracking-[0.2em] text-amber-300 shadow-sm">
-              <Sparkles className="h-3 w-3 animate-spin text-amber-400" />
-              <span>TATA IPL 2025 · OFFICIAL MEGA AUCTION ARENA</span>
-            </div>
-            
             <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
               ENTER THE <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-yellow-200 to-amber-500">ARENA</span>
             </h1>
@@ -211,7 +211,9 @@ export const StartPage: React.FC = () => {
                 <IdCard className="h-4 w-4 text-amber-400" />
                 <span>Manager Identity Name</span>
               </label>
-              <span className="text-[10px] font-mono text-slate-500 font-bold">{name.length}/32</span>
+              <span className="text-[10px] font-mono text-slate-400 font-bold">
+                {name.length > 0 ? `${name.length}/32` : 'Default: Vikram Sengupta'}
+              </span>
             </div>
 
             <div className="relative">
@@ -222,11 +224,10 @@ export const StartPage: React.FC = () => {
                 id="manager-name"
                 type="text"
                 value={name}
-                required
                 maxLength={32}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Enter manager name (e.g. Captain Rohit, Vikram, Suraj)..."
-                className="w-full rounded-xl border-2 border-white/15 bg-slate-900/90 pl-11 pr-4 py-3 text-sm sm:text-base font-extrabold text-white placeholder-slate-500 outline-none transition focus:border-amber-400 focus:ring-4 focus:ring-amber-400/20 shadow-inner"
+                placeholder="Vikram Sengupta"
+                className="w-full rounded-xl border-2 border-white/15 bg-slate-900/90 pl-11 pr-4 py-3 text-sm sm:text-base font-extrabold text-white placeholder:text-slate-400/80 placeholder:font-medium outline-none transition focus:border-amber-400 focus:ring-4 focus:ring-amber-400/20 shadow-inner"
               />
             </div>
 
@@ -320,7 +321,7 @@ export const StartPage: React.FC = () => {
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-black text-white">{name.trim() || 'Manager'}</span>
+                    <span className="truncate text-sm font-black text-white">{effectiveName}</span>
                     <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-black uppercase text-emerald-300 border border-emerald-500/40">
                       Accredited
                     </span>

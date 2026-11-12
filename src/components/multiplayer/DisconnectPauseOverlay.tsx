@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useGameStore } from '../../store/useGameStore';
-import { Pause, WifiOff, ShieldCheck, Users, LogOut } from 'lucide-react';
+import { Pause, ShieldCheck, Users, LogOut } from 'lucide-react';
 
 export const DisconnectPauseOverlay: React.FC = () => {
   const { isRoomPaused, roomPauseReason, pauseExpiresAt, leaveMultiplayerRoom } = useGameStore();
@@ -44,11 +44,6 @@ export const DisconnectPauseOverlay: React.FC = () => {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-4 w-4 bg-amber-500" />
             </span>
-          </div>
-
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold mb-3">
-            <WifiOff className="h-3.5 w-3.5" />
-            <span>Connection Interrupted</span>
           </div>
 
           <h2 id="pause-dialog-title" className="text-2xl font-black tracking-tight text-white sm:text-3xl">

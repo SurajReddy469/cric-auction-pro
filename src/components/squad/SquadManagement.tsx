@@ -69,9 +69,6 @@ export const SquadManagement: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-3xl font-black text-slate-900">{team.name}</h1>
-                <span className="px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                  Roster Operations
-                </span>
               </div>
             </div>
           </div>

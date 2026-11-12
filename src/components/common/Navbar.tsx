@@ -116,16 +116,6 @@ export const Navbar: React.FC = () => {
             <div className="hidden xs:block sm:block" aria-hidden="true" />
           </button>
 
-          {/* Mode Pill */}
-          <div className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-            gameMode === 'multiplayer'
-              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-              : 'bg-slate-100 text-slate-700 border border-slate-200'
-          }`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${gameMode === 'multiplayer' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
-            {gameMode === 'multiplayer' ? 'Multiplayer (Humans Only)' : 'Solo vs AI'}
-          </div>
-
         </div>
 
         {/* Desktop Navigation Screen Links */}

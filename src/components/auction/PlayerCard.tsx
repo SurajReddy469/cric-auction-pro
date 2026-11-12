@@ -18,12 +18,6 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({ player, onOpenScout }) =
       {/* Top Bar: Role & Tier Badge */}
       <div className="flex items-center justify-between mb-3 sm:mb-4 relative z-10">
         <div className="flex items-center gap-1.5 sm:gap-2">
-          <span className="px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider bg-amber-500 text-slate-950 shadow-sm">
-            {player.role}
-          </span>
-          <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-bold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
-            {player.tier}
-          </span>
         </div>
 
         {/* Scout Button or Scouted Badge */}
@@ -78,17 +72,6 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({ player, onOpenScout }) =
             </span>
           </div>
 
-          {/* Traits Badges */}
-          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-1 sm:gap-1.5 mt-2">
-            {player.traits.map(trait => (
-              <span
-                key={trait}
-                className="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[10px] sm:text-[11px] font-semibold text-slate-700"
-              >
-                ✨ {trait}
-              </span>
-            ))}
-          </div>
         </div>
 
         {/* Overall Rating Box */}

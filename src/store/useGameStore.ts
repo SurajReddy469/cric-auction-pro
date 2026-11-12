@@ -557,7 +557,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
     profile: StorageService.loadProfile(),
     setManagerProfile: (name: string, avatar?: string) => {
-      const cleanName = name.trim() || 'Manager';
+      const cleanName = name.trim() || 'Vikram Sengupta';
       const updatedProfile: ManagerProfile = {
         ...get().profile,
         name: cleanName,

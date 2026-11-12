@@ -1,38 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { AdminPanel } from '../../src/components/admin/AdminPanel';
-import { adminSyncBridge } from './services/adminSyncBridge';
-import { ExternalLink, ShieldAlert } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 
 export const AdminApp: React.FC = () => {
-  const [syncStatusPulse, setSyncStatusPulse] = useState<boolean>(false);
-
-  useEffect(() => {
-    const unsub = adminSyncBridge.onMessage(() => {
-      setSyncStatusPulse(true);
-      setTimeout(() => setSyncStatusPulse(false), 1200);
-    });
-    return unsub;
-  }, []);
-
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between">
       {/* Top Standalone Header Bar */}
       <div className="bg-slate-900 border-b border-slate-800 px-4 py-3 shadow-md">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/20 border border-rose-500/50 px-3 py-1 text-xs font-black text-rose-400 uppercase tracking-widest shadow-sm">
-              <ShieldAlert className="w-4 h-4 text-rose-400 animate-pulse" />
-              <span>OFFICIAL COMMISSIONER PORTAL (SEPARATE SITE)</span>
-            </span>
-
-            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${
-              syncStatusPulse ? 'bg-emerald-500 text-slate-950 animate-ping' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-            }`}>
-              <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              LIVE SYNC BRIDGE ACTIVE
-            </span>
-          </div>
-
           <a
             href="https://lbs-poultry-shopping-buyers.trycloudflare.com"
             target="_blank"

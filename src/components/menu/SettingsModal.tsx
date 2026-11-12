@@ -29,9 +29,6 @@ export const SettingsModal: React.FC = () => {
               <Flame className="w-4 h-4 text-amber-600" />
               <span className="text-sm font-bold text-slate-900">Player & Franchise Tournament Dataset</span>
             </div>
-            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
-              {settings.dataset === 'fictional' ? 'Fictional League' : '🔥 Real IPL 2025'}
-            </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

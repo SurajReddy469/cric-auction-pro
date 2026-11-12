@@ -30,21 +30,6 @@ export const AuctionControls: React.FC = () => {
   const canAffordNextBid = userTeam.currentPurse >= nextMinBid;
   const isBiddingActive = auction.phase === 'bidding' || auction.phase === 'going_once' || auction.phase === 'going_twice';
 
-  // Intensity War Gauge
-  const bidsCount = auction.bidHistory.length;
-  let intensityText = '🟢 OPENING BIDS';
-  let intensityColor = 'text-emerald-700 bg-emerald-50 border-emerald-200';
-  if (bidsCount >= 10) {
-    intensityText = '🔥 MEGA BIDDING WAR';
-    intensityColor = 'text-rose-700 bg-rose-50 border-rose-300 animate-pulse';
-  } else if (bidsCount >= 5) {
-    intensityText = '🔴 HEATED DUEL';
-    intensityColor = 'text-amber-800 bg-amber-50 border-amber-300';
-  } else if (bidsCount >= 2) {
-    intensityText = '🟡 HEATING UP';
-    intensityColor = 'text-amber-700 bg-amber-50/60 border-amber-200';
-  }
-
   const handleBidClick = (amount: number) => {
     soundService.playBidSound(true);
     soundService.playGavel();
@@ -65,9 +50,6 @@ export const AuctionControls: React.FC = () => {
           <div className="flex items-center gap-2 mb-0.5">
             <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">
               LIVE AUCTION GAVEL
-            </span>
-            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${intensityColor}`}>
-              {intensityText}
             </span>
           </div>
 
