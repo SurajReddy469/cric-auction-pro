@@ -1,6 +1,5 @@
 import React from 'react';
 import { useGameStore, GameScreen } from '../../store/useGameStore';
-import { TeamBadge } from './TeamBadge';
 import { soundService } from '../../services/soundService';
 import { 
   Volume2, 
@@ -11,7 +10,6 @@ import {
   Calendar, 
   Home,
   RotateCcw,
-  Plus,
   Radio,
   Trophy
 } from 'lucide-react';
@@ -27,15 +25,9 @@ export const Navbar: React.FC = () => {
     resetAllGameData,
     auction,
     leagueMatches,
-    sessions,
-    activeSessionId,
-    setSessionModalOpen,
     gameMode,
     multiplayerRoom,
-    setMultiplayerModalOpen
   } = useGameStore();
-
-  const activeSession = sessions?.find((s) => s.id === activeSessionId) || sessions?.[0];
 
   const team = userTeam();
   const hasDraftedPlayers = (team?.squad.length || 0) > 0;
@@ -134,33 +126,10 @@ export const Navbar: React.FC = () => {
             {gameMode === 'multiplayer' ? 'Multiplayer (Humans Only)' : 'Solo vs AI'}
           </div>
 
-          {/* User's Team Pill */}
-          {team && (
-            <button
-              type="button"
-              onClick={() => handleNavClick('start')}
-              title="Change Manager Name or Franchise on Start Page"
-              className="flex items-center gap-1.5 sm:gap-2.5 rounded-full bg-slate-100 hover:bg-slate-200/80 border border-slate-200 px-2 sm:px-3 py-1 shadow-inner min-w-0 transition-colors text-left"
-            >
-              <TeamBadge teamId={team.id} size="sm" />
-              <div className="flex flex-col min-w-0">
-                <span className="text-[11px] sm:text-xs font-extrabold text-slate-900 tracking-wide truncate max-w-[70px] xs:max-w-[110px] sm:max-w-none">
-                  {team.shortName}
-                </span>
-                <span className="text-[9px] sm:text-[10px] text-amber-700 font-bold font-mono leading-none">
-                  ₹{team.currentPurse.toFixed(1)} Cr
-                </span>
-              </div>
-              <div className="ml-1 pl-1.5 sm:pl-2 border-l border-slate-200 hidden sm:flex flex-col">
-                <span className="text-[9px] sm:text-[10px] text-slate-500 leading-none">Squad</span>
-                <span className="text-[11px] sm:text-xs font-bold text-emerald-600">{team.squad.length}/25</span>
-              </div>
-            </button>
-          )}
         </div>
 
         {/* Desktop Navigation Screen Links */}
-        <nav className="hidden md:flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+        <nav className={`${currentScreen === 'start' ? 'hidden' : 'hidden md:flex'} items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200`}>
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentScreen === item.screen;
@@ -192,44 +161,7 @@ export const Navbar: React.FC = () => {
         </nav>
 
         {/* Right Stats & Controls */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* Online Multiplayer Quick Toggle */}
-          <button
-            type="button"
-            onClick={() => {
-              soundService.playClick();
-              if (multiplayerRoom) {
-                setScreen('multiplayer_lobby');
-              } else {
-                setMultiplayerModalOpen(true);
-              }
-            }}
-            className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-all shadow-sm ${
-              gameMode === 'multiplayer'
-                ? 'bg-emerald-50 border-emerald-300 text-emerald-900 hover:bg-emerald-100'
-                : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-            }`}
-            title="Real-Time Multiplayer (Humans Only)"
-          >
-            <Radio className={`w-3.5 h-3.5 ${gameMode === 'multiplayer' ? 'text-emerald-600 animate-pulse' : 'text-slate-500'}`} />
-            <span>{multiplayerRoom ? `Room #${multiplayerRoom.roomCode}` : 'Multiplayer'}</span>
-          </button>
-
-          {/* IPL Session Button */}
-          <button
-            type="button"
-            onClick={() => {
-              soundService.playClick();
-              setSessionModalOpen(true);
-            }}
-            className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-50 border border-amber-200/80 text-amber-900 hover:bg-amber-100 transition-colors shadow-sm text-xs font-bold"
-            title="Manage IPL Sessions"
-          >
-            <span className="text-[10px] text-amber-700 font-extrabold uppercase tracking-wider">Session</span>
-            <span className="truncate max-w-[110px] text-slate-900 font-black">{activeSession?.name || 'IPL 2025'}</span>
-            <Plus className="w-3 h-3 text-amber-600 stroke-[3]" />
-          </button>
-
+        <div className={`${currentScreen === 'start' ? 'hidden' : 'flex'} items-center gap-1.5 sm:gap-2`}>
           {/* Sound Toggle */}
           <button
             type="button"
@@ -270,7 +202,7 @@ export const Navbar: React.FC = () => {
       </div>
 
       {/* Mobile Phone Screen Navigation Bar */}
-      <div className={`grid ${navItems.length === 5 ? 'grid-cols-5' : 'grid-cols-4'} md:hidden px-2 py-1 border-t border-slate-200 gap-1 bg-slate-50/90 text-center`}>
+      <div className={`${currentScreen === 'start' ? 'hidden' : 'grid'} ${navItems.length === 5 ? 'grid-cols-5' : 'grid-cols-4'} md:hidden px-2 py-1 border-t border-slate-200 gap-1 bg-slate-50/90 text-center`}>
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentScreen === item.screen;

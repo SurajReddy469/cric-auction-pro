@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '../../store/useGameStore';
 import { soundService } from '../../services/soundService';
@@ -30,6 +30,10 @@ export const MultiplayerModal: React.FC = () => {
   const [requiredPlayers, setRequiredPlayers] = useState<number>(2);
   const [roomCodeInput, setRoomCodeInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isMultiplayerModalOpen) setPlayerName(profile.name || 'Manager');
+  }, [isMultiplayerModalOpen, profile.name]);
 
   if (!isMultiplayerModalOpen) return null;
 

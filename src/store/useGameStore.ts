@@ -221,7 +221,7 @@ const defaultInitialSession: IPLSession = {
   aiAggression: initialSettings.aiAggression || 'balanced',
   timerSpeed: initialSettings.timerSpeed || 'standard',
   userTeamId: initialUserTeamId,
-  currentScreen: (savedCampaign?.currentScreen as GameScreen) || 'start',
+  currentScreen: 'start',
   teams: JSON.parse(JSON.stringify(initialTeamsSource)),
   players: JSON.parse(JSON.stringify(initialPlayersSource)),
   auction: initialAuctionState,
@@ -279,7 +279,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
   };
 
   return {
-    currentScreen: (savedCampaign?.currentScreen as GameScreen) || 'start',
+    currentScreen: 'start',
     setScreen: (screen) => {
       set({ currentScreen: screen });
       saveCampaignState({ currentScreen: screen });
@@ -431,7 +431,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         aiAggression,
         timerSpeed,
         userTeamId,
-        currentScreen: 'teams',
+        currentScreen: 'menu',
         teams: newTeams,
         players: newPlayers,
         auction: freshAuction,
@@ -457,7 +457,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         playoffStage: 'not_started',
         championTeam: null,
         seasonAwards: null,
-        currentScreen: 'teams',
+        currentScreen: 'menu',
         isSessionModalOpen: false,
       });
 
