@@ -1,88 +1,132 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useGameStore } from '../../store/useGameStore';
-import { TeamBadge } from '../common/TeamBadge';
 import { soundService } from '../../services/soundService';
+import { TeamBadge } from '../common/TeamBadge';
 import { 
-  Trophy, 
-  Play, 
+  ArrowRight, 
+  LogIn, 
+  Plus, 
   Radio, 
+  UserRound, 
+  Trophy, 
+  Sparkles, 
+  IdCard, 
   Check, 
-  MapPin, 
-  ArrowRight,
-  Briefcase,
-  IdCard,
-  Sparkles
+  Flame, 
+  Zap
 } from 'lucide-react';
+import { SessionFormat } from '../../types/session';
+
+type SessionMode = 'singleplayer' | 'multiplayer';
 
 const MANAGER_AVATARS = [
-  { id: 'tactician', label: 'The Tactician', icon: '👔', desc: 'Calculated, patient & master strategist' },
-  { id: 'skipper', label: 'The Skipper', icon: '🧢', desc: 'Inspiring leader & players’ favorite' },
-  { id: 'mogul', label: 'Franchise Mogul', icon: '💼', desc: 'Aggressive bidder & big spender' },
-  { id: 'quant', label: 'Moneyball Quant', icon: '💻', desc: 'Data-driven value seeker' },
-  { id: 'legend', label: 'Cricket Legend', icon: '🌟', desc: 'Immense respect & champion mindset' },
-  { id: 'strategist', label: 'War Room Boss', icon: '🦁', desc: 'Ruthless paddle raiser in crunch lots' },
+  { id: 'tactician', label: 'Tactician', icon: '👔', motto: 'Master Strategist' },
+  { id: 'skipper', label: 'Skipper', icon: '🧢', motto: 'Player-Leader' },
+  { id: 'mogul', label: 'Mogul', icon: '💼', motto: 'Big Spender' },
+  { id: 'quant', label: 'Analyst', icon: '💻', motto: 'Moneyball Scout' },
+  { id: 'legend', label: 'Legend', icon: '🌟', motto: 'IPL Champion' },
+  { id: 'warlord', label: 'War Room Boss', icon: '🦁', motto: 'Paddle Master' },
 ];
 
 export const StartPage: React.FC = () => {
-  const { 
-    teams, 
-    userTeamId, 
-    profile, 
+  const {
+    profile,
+    userTeamId,
+    teams,
+    selectTeam,
     setManagerProfile,
-    selectTeamAndResetCampaign,
-    startAuction, 
-    setScreen,
-    setMultiplayerModalOpen,
+    setGameMode,
+    createSession,
+    createMultiplayerRoom,
+    joinMultiplayerRoom,
+    multiplayerError,
+    setMultiplayerError,
     auction,
-    leagueMatches
+    leagueMatches,
+    setScreen,
   } = useGameStore();
 
-  const [managerName, setManagerName] = useState<string>(profile.name || 'Vikram Sengupta');
-  const [selectedAvatar, setSelectedAvatar] = useState<string>(profile.avatar || 'tactician');
-  const [selectedTeamId, setSelectedTeamId] = useState<string>(userTeamId || 'chennai-super-kings');
+  const [name, setName] = useState(profile.name || 'Vikram Sengupta');
+  const [avatarId, setAvatarId] = useState(profile.avatar || 'tactician');
+  const [selectedTeamId, setSelectedTeamId] = useState(userTeamId || 'chennai-super-kings');
+  const [tab, setTab] = useState<'create' | 'login'>('create');
+  const [sessionName, setSessionName] = useState('IPL 2025 Mega Auction');
+  const [mode, setMode] = useState<SessionMode>('singleplayer');
+  const [format, setFormat] = useState<SessionFormat>('mega');
+  const [roomCode, setRoomCode] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const selectedTeam = teams.find(t => t.id === selectedTeamId) || teams[0];
-  const activeAvatar = MANAGER_AVATARS.find(a => a.id === selectedAvatar) || MANAGER_AVATARS[0];
+  const activeAvatar = MANAGER_AVATARS.find(a => a.id === avatarId) || MANAGER_AVATARS[0];
   const isExistingCampaignActive = (auction.phase !== 'idle' && auction.phase !== 'completed') || leagueMatches.length > 0;
-
-  const handleSelectTeam = (id: string) => {
-    soundService.playClick();
-    setSelectedTeamId(id);
-  };
-
-  const handleSelectAvatar = (id: string) => {
-    soundService.playClick();
-    setSelectedAvatar(id);
-  };
+  const purseCap = format === 'mini' ? 60 : format === 'turbo' ? 90 : 120;
 
   const saveProfileData = () => {
-    const finalName = managerName.trim() || 'Manager';
-    setManagerProfile(finalName, selectedAvatar);
+    const finalName = name.trim() || 'Manager';
+    setManagerProfile(finalName, avatarId);
+    selectTeam(selectedTeamId);
   };
 
-  const handleStartSinglePlayer = () => {
-    soundService.playGavel();
-    saveProfileData();
-    selectTeamAndResetCampaign(selectedTeamId);
-    startAuction();
+  const handleSelectTeam = (tId: string) => {
+    soundService.playClick();
+    setSelectedTeamId(tId);
+    selectTeam(tId);
   };
 
-  const handleStartMultiplayer = () => {
+  const handleSelectAvatar = (aId: string) => {
+    soundService.playClick();
+    setAvatarId(aId);
+  };
+
+  const handleCreate = async (event: React.FormEvent) => {
+    event.preventDefault();
     soundService.playClick();
     saveProfileData();
-    selectTeamAndResetCampaign(selectedTeamId);
-    setMultiplayerModalOpen(true);
+    setMultiplayerError(null);
+
+    if (mode === 'singleplayer') {
+      soundService.playGavel();
+      setGameMode('singleplayer');
+      createSession({
+        name: sessionName.trim() || 'My IPL Session',
+        format,
+        purseCap,
+        preSelectedTeamId: selectedTeamId,
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    const success = await createMultiplayerRoom({
+      roomName: sessionName.trim() || 'My IPL Room',
+      playerName: name.trim() || 'Manager',
+      requiredPlayers: 2,
+      purseCap,
+    });
+    setIsSubmitting(false);
+    if (!success) soundService.playBuzzer();
   };
 
-  const handleGoToDashboard = () => {
+  const handleLogin = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!roomCode.trim()) return;
     soundService.playClick();
     saveProfileData();
-    selectTeamAndResetCampaign(selectedTeamId);
-    setScreen('menu');
+    setMultiplayerError(null);
+    setIsSubmitting(true);
+    const success = await joinMultiplayerRoom(roomCode.trim().toUpperCase(), name.trim() || 'Manager');
+    setIsSubmitting(false);
+    if (!success) soundService.playBuzzer();
   };
 
-  const handleResumeActiveCampaign = () => {
+  const switchTab = (next: 'create' | 'login') => {
+    soundService.playClick();
+    setTab(next);
+    setMultiplayerError(null);
+  };
+
+  const handleResume = () => {
     soundService.playClick();
     if (auction.phase !== 'idle' && auction.phase !== 'completed') {
       setScreen('auction');
@@ -94,386 +138,378 @@ export const StartPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-65px)] bg-slate-950 text-white relative isolate overflow-hidden flex flex-col justify-between">
-      {/* Background Stadium Glow & Grid Elements */}
+    <main className="relative isolate min-h-[calc(100vh-65px)] w-full overflow-hidden bg-[#070b14] px-3 py-6 sm:px-6 sm:py-10 text-white flex items-center justify-center">
+      {/* Stadium Floodlights & Ambient Glow */}
       <div 
-        className="absolute inset-0 -z-10 opacity-35 transition-colors duration-700 pointer-events-none"
+        className="pointer-events-none absolute inset-0 -z-10 transition-all duration-700 opacity-40"
         style={{
-          background: `radial-gradient(ellipse at 50% 10%, ${selectedTeam.primaryColor}33, transparent 60%), radial-gradient(ellipse at 90% 90%, #0ea5e922, transparent 50%), radial-gradient(ellipse at 10% 90%, #f59e0b22, transparent 50%)`
+          background: `radial-gradient(ellipse at 50% 0%, ${selectedTeam.primaryColor}44 0%, transparent 60%), radial-gradient(ellipse at 15% 100%, #f59e0b22 0%, transparent 50%), radial-gradient(ellipse at 85% 100%, #06b6d422 0%, transparent 50%)`
         }}
       />
-      <div className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none" />
+      {/* Stadium Grid Overlay */}
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(to_right,#ffffff07_1px,transparent_1px),linear-gradient(to_bottom,#ffffff07_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_65%_60%_at_50%_40%,#000_70%,transparent_100%)]" />
 
-      <div className="max-w-7xl mx-auto w-full px-3 py-6 sm:px-6 sm:py-8 lg:px-8 space-y-8">
+      {/* Main Single Card Container (NO extra sections) */}
+      <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-white/15 bg-slate-900/90 shadow-2xl backdrop-blur-2xl transition-all duration-500 hover:border-white/25">
         
-        {/* Top Resume Bar if existing campaign exists */}
-        {isExistingCampaignActive && (
-          <motion.div 
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 sm:px-5 rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-950/80 via-slate-900 to-amber-950/80 shadow-lg shadow-amber-950/40 backdrop-blur-md"
-          >
-            <div className="flex items-center gap-3 text-center sm:text-left">
-              <span className="flex h-3 w-3 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500" />
-              </span>
-              <div>
-                <span className="text-xs font-black text-amber-300 uppercase tracking-wider">Active Campaign In Progress:</span>
-                <span className="ml-2 text-sm font-bold text-white">
-                  Managing {teams.find(t => t.id === userTeamId)?.name || 'Franchise'}
+        {/* Dynamic Top Team Bar */}
+        <div 
+          className="h-2 w-full transition-colors duration-500"
+          style={{ backgroundColor: selectedTeam.primaryColor }}
+        />
+
+        {/* Card Content Wrapper */}
+        <div className="p-5 sm:p-8 space-y-6">
+          
+          {/* Header Title with Official League Badge */}
+          <div className="text-center space-y-2">
+            <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-amber-400/10 px-3.5 py-1 text-[11px] font-black uppercase tracking-[0.2em] text-amber-300 shadow-sm">
+              <Sparkles className="h-3 w-3 animate-spin text-amber-400" />
+              <span>TATA IPL 2025 · OFFICIAL MEGA AUCTION ARENA</span>
+            </div>
+            
+            <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
+              ENTER THE <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-yellow-200 to-amber-500">ARENA</span>
+            </h1>
+
+            <p className="text-xs sm:text-sm text-slate-300 max-w-lg mx-auto font-medium">
+              Create your manager accreditation, select your IPL franchise, and claim your auction paddle.
+            </p>
+          </div>
+
+          {/* Quick Resume Active Campaign Banner */}
+          {isExistingCampaignActive && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex items-center justify-between gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 shadow-md"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="relative flex h-2.5 w-2.5 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
+                </span>
+                <span className="truncate text-xs font-bold text-amber-200">
+                  Active campaign exists for <span className="text-white font-black">{teams.find(t => t.id === userTeamId)?.name || 'Your Team'}</span>
                 </span>
               </div>
-            </div>
-            <button
-              onClick={handleResumeActiveCampaign}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow-md transition-all hover:scale-105"
-            >
-              <span>Resume Active Campaign</span>
-              <ArrowRight className="w-3.5 h-3.5 stroke-[3]" />
-            </button>
-          </motion.div>
-        )}
-
-        {/* Hero Title & Banner */}
-        <div className="text-center space-y-3 max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-amber-400/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.2em] text-amber-300 shadow-inner">
-            <Sparkles className="w-3.5 h-3.5 fill-current text-amber-400 animate-spin" />
-            <span>TATA IPL 2025 · OFFICIAL MEGA AUCTION GAME</span>
-          </div>
-
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[0.95]">
-            ENTER THE <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-yellow-200 to-amber-500">ARENA</span>
-          </h1>
-          
-        </div>
-
-        {/* STEP 1: Manager Name & Identity Accreditation Card */}
-        <section className="bg-slate-900/90 border border-white/10 rounded-3xl p-5 sm:p-7 shadow-2xl backdrop-blur-xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-
-          <div className="flex items-center gap-2 mb-5">
-            <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-amber-400 text-slate-950 text-xs font-black">1</span>
-            <h2 className="text-lg sm:text-xl font-black text-white tracking-wide uppercase">
-              Enter Your Manager Name & Identity
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_0.9fr] gap-6 items-center">
-            {/* Input & Persona Selector */}
-            <div className="space-y-5">
-              <div>
-                <label htmlFor="manager-name" className="block text-xs font-black uppercase tracking-wider text-slate-300 mb-2">
-                  Manager / Franchise Owner Name <span className="text-amber-400">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-                    <span className="text-lg">🏏</span>
-                  </div>
-                  <input
-                    id="manager-name"
-                    type="text"
-                    value={managerName}
-                    onChange={(e) => setManagerName(e.target.value)}
-                    placeholder="Enter your name (e.g. Captain Rohit, Vikram, Suraj)..."
-                    maxLength={32}
-                    className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-slate-950/90 border-2 border-white/15 focus:border-amber-400 focus:ring-4 focus:ring-amber-400/20 text-white placeholder-slate-500 text-base sm:text-lg font-extrabold outline-none transition-all shadow-inner"
-                  />
-                  <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-xs font-mono text-slate-500">
-                    {managerName.length}/32
-                  </div>
-                </div>
-              </div>
-
-              {/* Avatar / Persona Selector */}
-              <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-slate-300 mb-2.5">
-                  Select Manager Persona Style
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
-                  {MANAGER_AVATARS.map((av) => {
-                    const isSelected = selectedAvatar === av.id;
-                    return (
-                      <button
-                        type="button"
-                        key={av.id}
-                        onClick={() => handleSelectAvatar(av.id)}
-                        className={`flex items-center gap-2.5 p-2.5 sm:p-3 rounded-xl border text-left transition-all ${
-                          isSelected
-                            ? 'bg-amber-400/15 border-amber-400 shadow-md ring-1 ring-amber-400/40 text-white'
-                            : 'bg-slate-950/60 border-white/10 hover:border-white/20 text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        <span className="text-xl sm:text-2xl">{av.icon}</span>
-                        <div className="min-w-0">
-                          <div className="text-xs font-black leading-tight truncate">{av.label}</div>
-                          <div className="text-[10px] text-slate-400 truncate hidden xs:block">{av.desc}</div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {/* Live Accreditation Badge Preview */}
-            <div className="flex flex-col items-center justify-center">
-              <div 
-                className="w-full max-w-sm rounded-2xl p-5 border-2 shadow-2xl relative overflow-hidden transition-all duration-500"
-                style={{
-                  backgroundColor: '#0a101f',
-                  borderColor: selectedTeam.primaryColor || '#fbbf24'
-                }}
+              <button
+                type="button"
+                onClick={handleResume}
+                className="shrink-0 rounded-xl bg-amber-400 px-3.5 py-1.5 text-xs font-black text-slate-950 transition hover:bg-amber-300 flex items-center gap-1 shadow-sm"
               >
-                {/* Team Top Ribbon */}
+                <span>Resume</span>
+                <ArrowRight className="h-3.5 w-3.5 stroke-[3]" />
+              </button>
+            </motion.div>
+          )}
+
+          {/* Manager Identity Input & Persona Selector */}
+          <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4 sm:p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <label htmlFor="manager-name" className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-300">
+                <IdCard className="h-4 w-4 text-amber-400" />
+                <span>Manager Identity Name</span>
+              </label>
+              <span className="text-[10px] font-mono text-slate-500 font-bold">{name.length}/32</span>
+            </div>
+
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                <span className="text-lg">🏏</span>
+              </div>
+              <input
+                id="manager-name"
+                type="text"
+                value={name}
+                required
+                maxLength={32}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Enter manager name (e.g. Captain Rohit, Vikram, Suraj)..."
+                className="w-full rounded-xl border-2 border-white/15 bg-slate-900/90 pl-11 pr-4 py-3 text-sm sm:text-base font-extrabold text-white placeholder-slate-500 outline-none transition focus:border-amber-400 focus:ring-4 focus:ring-amber-400/20 shadow-inner"
+              />
+            </div>
+
+            {/* Persona Quick Chips */}
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 mr-1">Persona:</span>
+              {MANAGER_AVATARS.map((av) => {
+                const isSelected = avatarId === av.id;
+                return (
+                  <button
+                    type="button"
+                    key={av.id}
+                    onClick={() => handleSelectAvatar(av.id)}
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold transition ${
+                      isSelected
+                        ? 'border border-amber-400 bg-amber-400/20 text-amber-300 shadow-sm'
+                        : 'border border-white/10 bg-slate-900/80 text-slate-400 hover:border-white/20 hover:text-white'
+                    }`}
+                  >
+                    <span>{av.icon}</span>
+                    <span>{av.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Franchise Selection Grid (All 10 Real IPL Teams) */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Flame className="h-4 w-4 text-amber-400" />
+                <span className="text-xs font-black uppercase tracking-wider text-slate-200">
+                  Select Your Respective Franchise
+                </span>
+              </div>
+              <span className="text-[11px] font-bold text-amber-400">
+                {selectedTeam.name} ({selectedTeam.shortName})
+              </span>
+            </div>
+
+            {/* 10 Franchise Badges (5x2 grid) */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-2.5">
+              {teams.map((t) => {
+                const isSelected = t.id === selectedTeamId;
+                return (
+                  <motion.button
+                    type="button"
+                    key={t.id}
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => handleSelectTeam(t.id)}
+                    className={`group relative flex items-center gap-2.5 rounded-xl border p-2 sm:p-2.5 text-left transition-all ${
+                      isSelected
+                        ? 'border-amber-400 bg-amber-400/15 shadow-lg shadow-amber-500/10 ring-2 ring-amber-400'
+                        : 'border-white/10 bg-slate-950/70 hover:border-white/30 hover:bg-slate-950'
+                    }`}
+                  >
+                    <TeamBadge teamId={t.id} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="truncate text-xs font-black text-white">{t.shortName}</span>
+                        {isSelected && <Check className="h-3 w-3 stroke-[3] text-amber-400" />}
+                      </div>
+                      <div className="flex items-center gap-1 text-[9px] text-slate-400 font-bold truncate">
+                        <Trophy className="h-2.5 w-2.5 fill-current text-amber-400 shrink-0" />
+                        <span>{t.trophies}</span>
+                        <span className="text-slate-600">·</span>
+                        <span className="truncate">{t.city}</span>
+                      </div>
+                    </div>
+                  </motion.button>
+                );
+              })}
+            </div>
+
+            {/* Live Accreditation Card Preview */}
+            <div 
+              className="flex items-center justify-between gap-3 rounded-xl border p-3 transition-colors duration-500 bg-slate-950/80 shadow-inner"
+              style={{ borderColor: `${selectedTeam.primaryColor}66` }}
+            >
+              <div className="flex items-center gap-3 min-w-0">
                 <div 
-                  className="absolute top-0 inset-x-0 h-2 opacity-90"
-                  style={{ backgroundColor: selectedTeam.primaryColor }}
-                />
-
-                <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-xl shadow-md"
+                  style={{ 
+                    backgroundColor: `${selectedTeam.primaryColor}22`,
+                    borderColor: selectedTeam.primaryColor 
+                  }}
+                >
+                  {activeAvatar.icon}
+                </div>
+                <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <IdCard className="w-4 h-4 text-amber-400" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                      OFFICIAL ACCREDITATION
+                    <span className="truncate text-sm font-black text-white">{name.trim() || 'Manager'}</span>
+                    <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-black uppercase text-emerald-300 border border-emerald-500/40">
+                      Accredited
                     </span>
                   </div>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-[9px] font-black text-emerald-300 uppercase tracking-wider">
-                    VERIFIED OWNER
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <div className="w-16 h-16 rounded-2xl bg-slate-900 border border-white/20 flex items-center justify-center text-3xl shadow-inner">
-                      {activeAvatar.icon}
-                    </div>
-                    <span className="absolute -bottom-1 -right-1 flex h-4 w-4 rounded-full bg-amber-400 items-center justify-center text-[10px] text-slate-950 font-black">
-                      ✓
-                    </span>
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="text-xl font-black text-white truncate tracking-tight">
-                      {managerName.trim() || 'Your Name Here'}
-                    </div>
-                    <div className="text-xs font-bold text-amber-400 uppercase tracking-wider">
-                      {activeAvatar.label}
-                    </div>
-                    <div className="text-[11px] text-slate-400 font-medium truncate mt-0.5">
-                      Head of Cricket Operations
-                    </div>
-                  </div>
-                </div>
-
-                {/* Team Details Inside Badge */}
-                <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <TeamBadge teamId={selectedTeam.id} size="sm" />
-                    <div>
-                      <div className="text-xs font-black text-white leading-tight">{selectedTeam.name}</div>
-                      <div className="text-[10px] text-slate-400">{selectedTeam.city}</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Purse</div>
-                    <div className="text-xs font-black text-amber-400 font-mono">₹120.0 Cr</div>
+                  <div className="flex items-center gap-1.5 text-[10px] text-slate-400 truncate">
+                    <span className="font-bold text-amber-400">{activeAvatar.motto}</span>
+                    <span className="text-slate-600">/</span>
+                    <span className="truncate">{selectedTeam.name}</span>
                   </div>
                 </div>
               </div>
+
+              <div className="shrink-0 text-right">
+                <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Purse Cap</div>
+                <div className="text-xs font-black font-mono text-amber-400">₹{purseCap}.0 Cr</div>
+              </div>
             </div>
           </div>
-        </section>
 
-        {/* STEP 2: Franchise Selection (10 Official Teams) */}
-        <section className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-amber-400 text-slate-950 text-xs font-black">2</span>
-              <h2 className="text-lg sm:text-xl font-black text-white tracking-wide uppercase">
-                Select Your Respective Franchise
-              </h2>
+          {/* Tab Controls: Create Session vs Join Room */}
+          <div className="space-y-4 pt-1">
+            <div className="grid grid-cols-2 rounded-xl bg-slate-950 p-1 border border-white/10" role="tablist" aria-label="Session action">
+              <button 
+                type="button" 
+                role="tab" 
+                aria-selected={tab === 'create'} 
+                onClick={() => switchTab('create')} 
+                className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs sm:text-sm font-black transition-all ${
+                  tab === 'create' 
+                    ? 'bg-amber-400 text-slate-950 shadow-md' 
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Plus className="h-4 w-4 stroke-[3]" />
+                <span>Create New Session</span>
+              </button>
+              <button 
+                type="button" 
+                role="tab" 
+                aria-selected={tab === 'login'} 
+                onClick={() => switchTab('login')} 
+                className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs sm:text-sm font-black transition-all ${
+                  tab === 'login' 
+                    ? 'bg-amber-400 text-slate-950 shadow-md' 
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <LogIn className="h-4 w-4 stroke-[3]" />
+                <span>Join with Code</span>
+              </button>
             </div>
-            <span className="text-xs text-slate-400 font-bold">
-              Selected: <span className="text-amber-400 font-extrabold">{selectedTeam.name} ({selectedTeam.shortName})</span>
-            </span>
-          </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-            {teams.map((t) => {
-              const isSelected = t.id === selectedTeamId;
-              return (
-                <motion.div
-                  key={t.id}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`Select ${t.name}`}
-                  aria-pressed={isSelected}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      handleSelectTeam(t.id);
-                    }
-                  }}
-                  whileHover={{ scale: 1.02 }}
+            {multiplayerError && (
+              <p role="alert" className="rounded-xl border border-rose-400/30 bg-rose-950/60 px-3.5 py-2.5 text-xs font-bold text-rose-200">
+                {multiplayerError}
+              </p>
+            )}
+
+            {tab === 'create' ? (
+              <form onSubmit={handleCreate} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-black uppercase tracking-wider text-slate-300">
+                      Session Name
+                    </label>
+                    <input 
+                      value={sessionName} 
+                      onChange={(e) => setSessionName(e.target.value)} 
+                      required 
+                      maxLength={40} 
+                      placeholder="Name your session" 
+                      className="w-full rounded-xl border border-white/15 bg-slate-950 px-3.5 py-2.5 text-sm font-bold text-white outline-none focus:border-amber-400 transition" 
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-black uppercase tracking-wider text-slate-300">
+                      Auction Format
+                    </label>
+                    <select 
+                      value={format} 
+                      onChange={(e) => setFormat(e.target.value as SessionFormat)} 
+                      className="w-full rounded-xl border border-white/15 bg-slate-950 px-3.5 py-2.5 text-sm font-bold text-white outline-none focus:border-amber-400 transition"
+                    >
+                      <option value="mega">Mega Auction · ₹120 Cr</option>
+                      <option value="turbo">Turbo Auction · ₹90 Cr</option>
+                      <option value="mini">Mini Auction · ₹60 Cr</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Game Type Selector: Solo vs Multiplayer */}
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-slate-300">
+                    Gameplay Mode
+                  </span>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <button 
+                      type="button" 
+                      aria-pressed={mode === 'singleplayer'} 
+                      onClick={() => { soundService.playClick(); setMode('singleplayer'); }} 
+                      className={`flex items-center justify-center gap-2 rounded-xl border p-3 text-left transition-all ${
+                        mode === 'singleplayer' 
+                          ? 'border-amber-400 bg-amber-400/20 text-white ring-1 ring-amber-400' 
+                          : 'border-white/10 bg-slate-950 text-slate-400 hover:border-white/20'
+                      }`}
+                    >
+                      <UserRound className="h-4 w-4 text-amber-400" />
+                      <div>
+                        <div className="text-xs font-black">Single-Player</div>
+                        <div className="text-[10px] text-slate-400">Solo vs 9 AI Bots</div>
+                      </div>
+                    </button>
+
+                    <button 
+                      type="button" 
+                      aria-pressed={mode === 'multiplayer'} 
+                      onClick={() => { soundService.playClick(); setMode('multiplayer'); }} 
+                      className={`flex items-center justify-center gap-2 rounded-xl border p-3 text-left transition-all ${
+                        mode === 'multiplayer' 
+                          ? 'border-emerald-400 bg-emerald-400/20 text-white ring-1 ring-emerald-400' 
+                          : 'border-white/10 bg-slate-950 text-slate-400 hover:border-white/20'
+                      }`}
+                    >
+                      <Radio className="h-4 w-4 animate-pulse text-emerald-400" />
+                      <div>
+                        <div className="text-xs font-black">Multiplayer</div>
+                        <div className="text-[10px] text-slate-400">Humans Only · 0 Bots</div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Primary Action Button */}
+                <motion.button 
+                  whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => handleSelectTeam(t.id)}
-                  className={`cursor-pointer rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 transition-all relative border overflow-hidden flex flex-col justify-between ${
-                    isSelected
-                      ? 'bg-gradient-to-b from-amber-500/20 via-slate-900 to-slate-950 border-amber-400 shadow-xl shadow-amber-500/10 ring-2 ring-amber-400'
-                      : 'bg-slate-900/80 border-white/10 hover:border-amber-400/50 hover:bg-slate-900'
+                  type="submit" 
+                  disabled={isSubmitting} 
+                  className={`flex w-full items-center justify-center gap-2 rounded-xl py-3.5 px-4 font-black text-sm shadow-xl transition-all disabled:opacity-60 ${
+                    mode === 'multiplayer'
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-emerald-500/25'
+                      : 'bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 shadow-amber-500/25'
                   }`}
                 >
-                  {/* Team Accent Glow */}
-                  <div 
-                    className="absolute -top-8 -right-8 h-20 w-20 rounded-full blur-xl opacity-30 pointer-events-none"
-                    style={{ backgroundColor: t.primaryColor }}
+                  <Zap className="h-4 w-4 fill-current" />
+                  <span>
+                    {isSubmitting 
+                      ? 'Launching...' 
+                      : mode === 'multiplayer' 
+                        ? `Create Online Room & Invite Friends (₹${purseCap} Cr)` 
+                        : `Enter Auction War Room as ${selectedTeam.shortName}`}
+                  </span>
+                  <ArrowRight className="h-4 w-4 stroke-[3]" />
+                </motion.button>
+              </form>
+            ) : (
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-black uppercase tracking-wider text-slate-300">
+                    Online Room Code
+                  </label>
+                  <input 
+                    value={roomCode} 
+                    onChange={(e) => setRoomCode(e.target.value.toUpperCase())} 
+                    maxLength={8} 
+                    placeholder="Enter 6-digit code (e.g. JDLJ77)" 
+                    className="w-full rounded-xl border-2 border-white/15 bg-slate-950 px-4 py-3 text-center text-lg font-black font-mono tracking-widest text-amber-400 placeholder-slate-600 outline-none focus:border-amber-400 transition" 
                   />
+                </div>
 
-                  {/* Header: Badge & Trophies */}
-                  <div className="flex items-start justify-between gap-2">
-                    <TeamBadge teamId={t.id} size="md" />
-                    <div className="flex flex-col items-end">
-                      <span className="text-[10px] font-black text-amber-300 font-mono tracking-wider flex items-center gap-0.5">
-                        <Trophy className="w-3 h-3 fill-current text-amber-400" />
-                        <span>{t.trophies}</span>
-                      </span>
-                      {isSelected && (
-                        <span className="mt-1 flex h-4 w-4 rounded-full bg-amber-400 items-center justify-center text-[10px] text-slate-950 font-black">
-                          <Check className="w-2.5 h-2.5 stroke-[4]" />
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Body: Names & City */}
-                  <div className="mt-3">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                      {t.shortName}
-                    </span>
-                    <h3 className="text-sm sm:text-base font-black text-white leading-tight truncate">
-                      {t.name}
-                    </h3>
-                    <div className="flex items-center gap-1 text-[11px] text-slate-400 mt-1 truncate">
-                      <MapPin className="w-3 h-3 text-amber-400 shrink-0" />
-                      <span className="truncate">{t.city}</span>
-                    </div>
-                  </div>
-
-                  {/* Footer Pill: Purse & Style */}
-                  <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between text-[10px]">
-                    <span className="text-slate-400 font-semibold truncate max-w-[80px]">
-                      {t.personality}
-                    </span>
-                    <span className="text-amber-400 font-black font-mono">
-                      ₹{t.currentPurse.toFixed(0)} Cr
-                    </span>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* STEP 3: Launch Hub & Gameplay Modes */}
-        <section className="bg-slate-900/90 border border-white/10 rounded-3xl p-5 sm:p-7 shadow-2xl relative overflow-hidden">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-amber-400 text-slate-950 text-xs font-black">3</span>
-            <h2 className="text-lg sm:text-xl font-black text-white tracking-wide uppercase">
-              Choose How You Want To Play
-            </h2>
+                <motion.button 
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.98 }}
+                  type="submit" 
+                  disabled={isSubmitting || !roomCode.trim()} 
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 py-3.5 px-4 font-black text-sm text-slate-950 shadow-xl shadow-emerald-500/20 transition-all disabled:opacity-50"
+                >
+                  <Radio className="h-4 w-4 animate-pulse" />
+                  <span>{isSubmitting ? 'Connecting...' : 'Join Human-Only Room'}</span>
+                  <ArrowRight className="h-4 w-4 stroke-[3]" />
+                </motion.button>
+              </form>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Action 1: Single-Player Live Auction */}
-            <motion.button
-              whileHover={{ y: -3, scale: 1.01 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={handleStartSinglePlayer}
-              className="flex flex-col justify-between p-5 rounded-2xl bg-gradient-to-tr from-amber-500 via-amber-400 to-yellow-400 text-slate-950 text-left shadow-xl shadow-amber-500/20 transition-all group"
-            >
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-950 text-amber-400 shadow-md">
-                    <Play className="w-5 h-5 fill-current ml-0.5" />
-                  </span>
-                  <span className="px-2.5 py-1 rounded-full bg-slate-950/15 text-[10px] font-black uppercase tracking-wider text-slate-950">
-                    Solo Campaign
-                  </span>
-                </div>
-                <h3 className="text-xl font-black tracking-tight leading-snug">
-                  Start Single-Player Auction
-                </h3>
-              </div>
-
-              <div className="mt-5 flex items-center justify-between pt-3 border-t border-slate-950/20 text-xs font-black">
-                <span>Lock in & Start Bidding</span>
-                <ArrowRight className="w-4 h-4 stroke-[3] group-hover:translate-x-1 transition-transform" />
-              </div>
-            </motion.button>
-
-            {/* Action 2: Online Multiplayer (Humans Only) */}
-            <motion.button
-              whileHover={{ y: -3, scale: 1.01 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={handleStartMultiplayer}
-              className="flex flex-col justify-between p-5 rounded-2xl bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-500 text-slate-950 text-left shadow-xl shadow-emerald-500/20 transition-all group"
-            >
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-950 text-emerald-400 shadow-md">
-                    <Radio className="w-5 h-5 animate-pulse" />
-                  </span>
-                  <span className="px-2.5 py-1 rounded-full bg-slate-950/15 text-[10px] font-black uppercase tracking-wider text-slate-950">
-                    Humans Only · 0 Bots
-                  </span>
-                </div>
-                <h3 className="text-xl font-black tracking-tight leading-snug">
-                  Play Online Multiplayer
-                </h3>
-              </div>
-
-              <div className="mt-5 flex items-center justify-between pt-3 border-t border-slate-950/20 text-xs font-black">
-                <span>Host or Join Room</span>
-                <ArrowRight className="w-4 h-4 stroke-[3] group-hover:translate-x-1 transition-transform" />
-              </div>
-            </motion.button>
-
-            {/* Action 3: Go to Main Menu / Dashboard */}
-            <motion.button
-              whileHover={{ y: -3, scale: 1.01 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={handleGoToDashboard}
-              className="flex flex-col justify-between p-5 rounded-2xl bg-slate-800/90 hover:bg-slate-800 border border-white/10 hover:border-amber-400/50 text-white text-left shadow-lg transition-all group"
-            >
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-slate-300 border border-white/10">
-                    <Briefcase className="w-5 h-5" />
-                  </span>
-                  <span className="px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-black uppercase tracking-wider text-slate-300">
-                    Control Room
-                  </span>
-                </div>
-                <h3 className="text-xl font-black tracking-tight leading-snug">
-                  Enter Manager Dashboard
-                </h3>
-              </div>
-
-              <div className="mt-5 flex items-center justify-between pt-3 border-t border-white/10 text-xs font-black text-slate-300 group-hover:text-amber-400 transition-colors">
-                <span>Open Franchise Desk</span>
-                <ArrowRight className="w-4 h-4 stroke-[3] group-hover:translate-x-1 transition-transform" />
-              </div>
-            </motion.button>
-          </div>
-        </section>
+        </div>
 
       </div>
-
-      {/* Footer */}
-      <footer className="border-t border-white/10 bg-slate-950/80 backdrop-blur-md py-4 px-4 sm:px-8 text-center text-xs text-slate-500">
-        <span>Cric-Auction Pro 2025 · Official Cricket Auction & Franchise Management Simulation. All rights reserved.</span>
-      </footer>
-    </div>
+    </main>
   );
 };
