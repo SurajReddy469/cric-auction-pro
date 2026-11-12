@@ -33,7 +33,6 @@ export const DEFAULT_SETTINGS: GameSettings = {
 
 export const DEFAULT_PROFILE: ManagerProfile = {
   name: 'Vikram Sengupta',
-  avatar: 'manager-1',
   reputation: 85,
   totalSeasons: 1,
   trophies: 0,
@@ -79,7 +78,10 @@ export class StorageService {
     try {
       const storage = getStorage();
       const data = storage?.getItem(PROFILE_KEY);
-      if (data) return JSON.parse(data);
+      if (data) {
+        const { avatar: _avatar, ...profile } = JSON.parse(data) as ManagerProfile & { avatar?: string };
+        return profile;
+      }
     } catch (e) {
       console.warn('Failed to load profile from localStorage', e);
     }
