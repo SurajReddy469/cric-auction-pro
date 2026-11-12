@@ -59,10 +59,26 @@ export interface SavedCampaign {
   timestamp: number;
 }
 
+function getStorage(): Storage | null {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage;
+    }
+    if (typeof localStorage !== 'undefined' && typeof localStorage.getItem === 'function') {
+      localStorage.getItem('__probe__');
+      return localStorage;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 export class StorageService {
   static loadProfile(): ManagerProfile {
     try {
-      const data = localStorage.getItem(PROFILE_KEY);
+      const storage = getStorage();
+      const data = storage?.getItem(PROFILE_KEY);
       if (data) return JSON.parse(data);
     } catch (e) {
       console.warn('Failed to load profile from localStorage', e);
@@ -72,7 +88,7 @@ export class StorageService {
 
   static saveProfile(profile: ManagerProfile) {
     try {
-      localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+      getStorage()?.setItem(PROFILE_KEY, JSON.stringify(profile));
     } catch (e) {
       console.warn('Failed to save profile', e);
     }
@@ -80,7 +96,8 @@ export class StorageService {
 
   static loadAchievements(initialAchievements: Achievement[]): Achievement[] {
     try {
-      const data = localStorage.getItem(ACHIEVEMENTS_KEY);
+      const storage = getStorage();
+      const data = storage?.getItem(ACHIEVEMENTS_KEY);
       if (data) {
         const stored: Achievement[] = JSON.parse(data);
         return initialAchievements.map(init => {
@@ -96,7 +113,7 @@ export class StorageService {
 
   static saveAchievements(achievements: Achievement[]) {
     try {
-      localStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify(achievements));
+      getStorage()?.setItem(ACHIEVEMENTS_KEY, JSON.stringify(achievements));
     } catch (e) {
       console.warn('Failed to save achievements', e);
     }
@@ -104,7 +121,8 @@ export class StorageService {
 
   static loadSettings(): GameSettings {
     try {
-      const data = localStorage.getItem(SETTINGS_KEY);
+      const storage = getStorage();
+      const data = storage?.getItem(SETTINGS_KEY);
       if (data) return { ...DEFAULT_SETTINGS, ...JSON.parse(data) };
     } catch (e) {
       console.warn('Failed to load settings', e);
@@ -114,7 +132,7 @@ export class StorageService {
 
   static saveSettings(settings: GameSettings) {
     try {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      getStorage()?.setItem(SETTINGS_KEY, JSON.stringify(settings));
     } catch (e) {
       console.warn('Failed to save settings', e);
     }
@@ -123,7 +141,8 @@ export class StorageService {
   // Active Campaign Persistence (Fixes Issue 11)
   static loadCampaign(): SavedCampaign | null {
     try {
-      const data = localStorage.getItem(CAMPAIGN_KEY);
+      const storage = getStorage();
+      const data = storage?.getItem(CAMPAIGN_KEY);
       if (data) {
         const parsed = JSON.parse(data);
         if (parsed && parsed.teams && parsed.players && parsed.auction) {
@@ -138,7 +157,7 @@ export class StorageService {
 
   static saveCampaign(campaign: SavedCampaign) {
     try {
-      localStorage.setItem(CAMPAIGN_KEY, JSON.stringify(campaign));
+      getStorage()?.setItem(CAMPAIGN_KEY, JSON.stringify(campaign));
     } catch (e) {
       console.warn('Failed to save campaign state', e);
     }
@@ -146,26 +165,29 @@ export class StorageService {
 
   static clearCampaign() {
     try {
-      localStorage.removeItem(CAMPAIGN_KEY);
+      getStorage()?.removeItem(CAMPAIGN_KEY);
     } catch (e) {
       console.warn('Failed to clear campaign state', e);
     }
   }
 
   static clearAllData() {
-    localStorage.removeItem(PROFILE_KEY);
-    localStorage.removeItem(ACHIEVEMENTS_KEY);
-    localStorage.removeItem(SETTINGS_KEY);
-    localStorage.removeItem(CAREER_KEY);
-    localStorage.removeItem(CAMPAIGN_KEY);
-    localStorage.removeItem(SESSIONS_KEY);
-    localStorage.removeItem(ACTIVE_SESSION_ID_KEY);
+    const storage = getStorage();
+    if (!storage) return;
+    storage.removeItem(PROFILE_KEY);
+    storage.removeItem(ACHIEVEMENTS_KEY);
+    storage.removeItem(SETTINGS_KEY);
+    storage.removeItem(CAREER_KEY);
+    storage.removeItem(CAMPAIGN_KEY);
+    storage.removeItem(SESSIONS_KEY);
+    storage.removeItem(ACTIVE_SESSION_ID_KEY);
   }
 
   // IPL Multi-Session Management
   static loadSessions(): IPLSession[] {
     try {
-      const data = localStorage.getItem(SESSIONS_KEY);
+      const storage = getStorage();
+      const data = storage?.getItem(SESSIONS_KEY);
       if (data) {
         const parsed = JSON.parse(data);
         if (Array.isArray(parsed)) return parsed;
@@ -178,7 +200,7 @@ export class StorageService {
 
   static saveSessions(sessions: IPLSession[]) {
     try {
-      localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
+      getStorage()?.setItem(SESSIONS_KEY, JSON.stringify(sessions));
     } catch (e) {
       console.warn('Failed to save IPL sessions', e);
     }
@@ -186,7 +208,7 @@ export class StorageService {
 
   static loadActiveSessionId(): string | null {
     try {
-      return localStorage.getItem(ACTIVE_SESSION_ID_KEY);
+      return getStorage()?.getItem(ACTIVE_SESSION_ID_KEY) || null;
     } catch {
       return null;
     }
@@ -194,7 +216,7 @@ export class StorageService {
 
   static saveActiveSessionId(id: string) {
     try {
-      localStorage.setItem(ACTIVE_SESSION_ID_KEY, id);
+      getStorage()?.setItem(ACTIVE_SESSION_ID_KEY, id);
     } catch (e) {
       console.warn('Failed to save active session ID', e);
     }

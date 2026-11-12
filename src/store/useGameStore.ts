@@ -5,6 +5,8 @@ import { AuctionState, BidRecord, AuctionFeedMessage } from '../types/auction';
 import { Match, LeagueStanding, SeasonAwards } from '../types/season';
 import { ManagerProfile, Achievement } from '../types/career';
 import { IPLSession, CreateSessionInput } from '../types/session';
+import { MultiplayerRoomState } from '../types/multiplayer';
+import { multiplayerService } from '../services/multiplayerService';
 import { REAL_IPL_TEAMS, FICTIONAL_TEAMS, INITIAL_TEAMS } from '../data/teams';
 import { REAL_IPL_PLAYERS, FICTIONAL_PLAYERS, INITIAL_PLAYERS } from '../data/players';
 import { INITIAL_ACHIEVEMENTS } from '../data/achievements';
@@ -20,14 +22,45 @@ import { StorageService, GameSettings } from '../services/storageService';
 import confetti from 'canvas-confetti';
 
 export type GameScreen = 
+  | 'start'
   | 'menu' 
   | 'teams' 
   | 'auction' 
   | 'squad' 
   | 'season'
-  | 'admin';
+  | 'admin'
+  | 'multiplayer_lobby';
 
 export interface GameStoreState {
+  // Game Mode: Single-player (with AI managers) vs Multiplayer (Humans Only, 0 bots)
+  gameMode: 'singleplayer' | 'multiplayer';
+  setGameMode: (mode: 'singleplayer' | 'multiplayer') => void;
+
+  // Real-Time Online Multiplayer Room State
+  multiplayerRoom: MultiplayerRoomState | null;
+  myParticipantId: string;
+  isMultiplayerModalOpen: boolean;
+  setMultiplayerModalOpen: (open: boolean) => void;
+  multiplayerError: string | null;
+  setMultiplayerError: (err: string | null) => void;
+  isRoomPaused: boolean;
+  roomPauseReason: string | null;
+  pauseExpiresAt: number | null;
+
+  // Multiplayer Actions
+  createMultiplayerRoom: (options: {
+    roomName: string;
+    playerName: string;
+    requiredPlayers: number;
+    purseCap: number;
+    roomCode?: string;
+  }) => Promise<boolean>;
+  joinMultiplayerRoom: (roomCode: string, playerName: string) => Promise<boolean>;
+  claimMultiplayerTeam: (teamId: string) => void;
+  toggleMultiplayerReady: () => void;
+  startMultiplayerAuction: () => void;
+  leaveMultiplayerRoom: () => void;
+
   // Navigation
   currentScreen: GameScreen;
   setScreen: (screen: GameScreen) => void;
@@ -54,6 +87,7 @@ export interface GameStoreState {
 
   // Career & Profile
   profile: ManagerProfile;
+  setManagerProfile: (name: string, avatar?: string) => void;
   achievements: Achievement[];
   settings: GameSettings;
 
@@ -187,7 +221,7 @@ const defaultInitialSession: IPLSession = {
   aiAggression: initialSettings.aiAggression || 'balanced',
   timerSpeed: initialSettings.timerSpeed || 'standard',
   userTeamId: initialUserTeamId,
-  currentScreen: (savedCampaign?.currentScreen as GameScreen) || 'menu',
+  currentScreen: (savedCampaign?.currentScreen as GameScreen) || 'start',
   teams: JSON.parse(JSON.stringify(initialTeamsSource)),
   players: JSON.parse(JSON.stringify(initialPlayersSource)),
   auction: initialAuctionState,
@@ -245,7 +279,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
   };
 
   return {
-    currentScreen: (savedCampaign?.currentScreen as GameScreen) || 'menu',
+    currentScreen: (savedCampaign?.currentScreen as GameScreen) || 'start',
     setScreen: (screen) => {
       set({ currentScreen: screen });
       saveCampaignState({ currentScreen: screen });
@@ -255,6 +289,77 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     teams: JSON.parse(JSON.stringify(initialTeamsSource)),
     players: JSON.parse(JSON.stringify(initialPlayersSource)),
     userTeam: () => get().teams.find(t => t.id === get().userTeamId),
+
+    // Game Mode & Multiplayer State (Strictly Human-Only in multiplayer)
+    gameMode: 'singleplayer',
+    setGameMode: (mode) => set({ gameMode: mode }),
+
+    multiplayerRoom: null,
+    myParticipantId: multiplayerService.getMyParticipantId(),
+    isMultiplayerModalOpen: false,
+    setMultiplayerModalOpen: (open) => set({ isMultiplayerModalOpen: open }),
+    multiplayerError: null,
+    setMultiplayerError: (err) => set({ multiplayerError: err }),
+    isRoomPaused: false,
+    roomPauseReason: null,
+    pauseExpiresAt: null,
+
+    createMultiplayerRoom: async (options) => {
+      const { settings } = get();
+      const datasetTeams = settings.dataset === 'fictional' ? FICTIONAL_TEAMS : REAL_IPL_TEAMS;
+      const datasetPlayers = settings.dataset === 'fictional' ? FICTIONAL_PLAYERS : REAL_IPL_PLAYERS;
+
+      const success = await multiplayerService.createRoom({
+        ...options,
+        teams: JSON.parse(JSON.stringify(datasetTeams)),
+        players: JSON.parse(JSON.stringify(datasetPlayers)),
+      });
+
+      if (success) {
+        set({
+          gameMode: 'multiplayer',
+          currentScreen: 'multiplayer_lobby',
+          isMultiplayerModalOpen: false,
+        });
+      }
+      return success;
+    },
+
+    joinMultiplayerRoom: async (roomCode, playerName) => {
+      const success = await multiplayerService.joinRoom(roomCode, playerName);
+      if (success) {
+        set({
+          gameMode: 'multiplayer',
+          currentScreen: 'multiplayer_lobby',
+          isMultiplayerModalOpen: false,
+        });
+      }
+      return success;
+    },
+
+    claimMultiplayerTeam: (teamId: string) => {
+      multiplayerService.claimTeam(teamId);
+      set({ userTeamId: teamId });
+    },
+
+    toggleMultiplayerReady: () => {
+      multiplayerService.toggleReady();
+    },
+
+    startMultiplayerAuction: () => {
+      multiplayerService.startAuction();
+    },
+
+    leaveMultiplayerRoom: () => {
+      multiplayerService.disconnect();
+      set({
+        gameMode: 'singleplayer',
+        multiplayerRoom: null,
+        currentScreen: 'menu',
+        isRoomPaused: false,
+        roomPauseReason: null,
+      });
+    },
 
     // Multi-Session Management
     sessions: initialSessionsList,
@@ -451,6 +556,16 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     activeScorecardMatch: null,
 
     profile: StorageService.loadProfile(),
+    setManagerProfile: (name: string, avatar?: string) => {
+      const cleanName = name.trim() || 'Manager';
+      const updatedProfile: ManagerProfile = {
+        ...get().profile,
+        name: cleanName,
+        avatar: avatar || get().profile.avatar || 'tactician'
+      };
+      set({ profile: updatedProfile });
+      StorageService.saveProfile(updatedProfile);
+    },
     achievements: StorageService.loadAchievements(INITIAL_ACHIEVEMENTS),
     settings: initialSettings,
 
@@ -557,12 +672,26 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
       soundService.playGavel();
 
-      setTimeout(() => {
-        get().triggerAIBidDecision();
-      }, 1500);
+      if (get().gameMode !== 'multiplayer') {
+        setTimeout(() => {
+          get().triggerAIBidDecision();
+        }, 1500);
+      }
     },
 
     placeHumanBid: (customAmount?: number) => {
+      // In Human-Only Multiplayer, forward bid to authoritative WebSocket server
+      if (get().gameMode === 'multiplayer') {
+        const { auction } = get();
+        if (!auction.currentPlayer) return;
+        const nextAmount = customAmount !== undefined 
+          ? customAmount 
+          : getNextBidAmount(auction.currentBid, auction.currentPlayer.basePrice);
+        multiplayerService.placeHumanBid(nextAmount);
+        soundService.playBid();
+        return;
+      }
+
       const { auction, userTeamId, teams, unlockAchievement } = get();
       if (auction.phase !== 'bidding' && auction.phase !== 'going_once' && auction.phase !== 'going_twice') return;
       if (!auction.currentPlayer) return;
@@ -626,6 +755,11 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
     // AI Bidding with fresh state checks (Fixes Issue 1 & Issue 2)
     triggerAIBidDecision: () => {
+      // STRICT HUMAN-ONLY GUARD: Absolutely NO bots or AI managers can bid in multiplayer mode!
+      if (get().gameMode === 'multiplayer') {
+        return;
+      }
+
       const { auction, teams, players, userTeamId, settings } = get();
       if (auction.phase !== 'bidding' && auction.phase !== 'going_once' && auction.phase !== 'going_twice') return;
       if (!auction.currentPlayer) return;
@@ -751,6 +885,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     },
 
     tickAuctionTimer: () => {
+      // In multiplayer mode, the authoritative WebSocket server manages the countdown clock
+      if (get().gameMode === 'multiplayer') return;
+
       const { auction } = get();
       if (auction.phase !== 'bidding' && auction.phase !== 'going_once' && auction.phase !== 'going_twice') return;
 
@@ -959,6 +1096,12 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
     // Auto-complete auction handling current lot first (Fixes Issue 4)
     autoCompleteAuction: () => {
+      // In Human-Only Multiplayer, auto-completion is disabled to prevent bot substitution
+      if (get().gameMode === 'multiplayer') {
+        alert('Auto-simulate is disabled in Human-Only Multiplayer. All decisions must be made by human managers.');
+        return;
+      }
+
       const { players, teams, auction, userTeamId, settings } = get();
       const updatedTeams = JSON.parse(JSON.stringify(teams)) as Team[];
       const updatedPlayers = [...players];
@@ -2041,4 +2184,57 @@ if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
   } catch (e) {
     console.warn('BroadcastChannel sync error', e);
   }
+}
+
+// Online Multiplayer WebSocket Subscriptions (Human-Only Mode)
+if (typeof window !== 'undefined') {
+  multiplayerService.onRoomUpdate((room) => {
+    const store = useGameStore.getState();
+    useGameStore.setState({
+      multiplayerRoom: room,
+      isRoomPaused: room.status === 'paused',
+      roomPauseReason: room.pauseReason || null,
+      pauseExpiresAt: room.pauseExpiresAt || null,
+    });
+
+    if (room.status === 'auction') {
+      store.setScreen('auction');
+    } else if (room.status === 'lobby') {
+      store.setScreen('multiplayer_lobby');
+    }
+  });
+
+  multiplayerService.onAuctionSync(({ auctionState, teams, players }) => {
+    useGameStore.setState({
+      auction: auctionState,
+      ...(teams && teams.length > 0 ? { teams } : {}),
+      ...(players && players.length > 0 ? { players } : {}),
+      isRoomPaused: false,
+      roomPauseReason: null,
+    });
+  });
+
+  multiplayerService.onRoomPaused(({ reason, pauseExpiresAt }) => {
+    useGameStore.setState({
+      isRoomPaused: true,
+      roomPauseReason: reason,
+      pauseExpiresAt,
+    });
+    soundService.playBuzzer();
+  });
+
+  multiplayerService.onRoomResumed((room) => {
+    useGameStore.setState({
+      multiplayerRoom: room,
+      isRoomPaused: false,
+      roomPauseReason: null,
+      pauseExpiresAt: null,
+    });
+    soundService.playGavel();
+  });
+
+  multiplayerService.onError((msg) => {
+    useGameStore.setState({ multiplayerError: msg });
+    soundService.playBuzzer();
+  });
 }

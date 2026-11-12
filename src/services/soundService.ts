@@ -73,6 +73,15 @@ class SoundService {
     osc2.stop(t + 0.08);
   }
 
+  // Aliases for compatibility
+  playBid(isHuman: boolean = false) {
+    this.playBidSound(isHuman);
+  }
+
+  playBuzzer() {
+    this.playUnsoldBuzzer();
+  }
+
   // Live broadcast auction timer tick
   playTimerTick() {
     if (!this.enabled) return;

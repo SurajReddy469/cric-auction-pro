@@ -117,9 +117,6 @@ export const IPLSessionModal: React.FC = () => {
                   <h2 id="session-modal-title" className="text-xl font-black tracking-tight text-white sm:text-2xl">
                     IPL Tournament Sessions
                   </h2>
-                  <p className="text-xs font-semibold text-slate-300">
-                    Create custom auction rooms, adjust rules & switch campaigns
-                  </p>
                 </div>
               </div>
 
@@ -226,7 +223,6 @@ export const IPLSessionModal: React.FC = () => {
                       icon={<Sparkles className="h-5 w-5 text-amber-600" />}
                       title="Mega Auction"
                       purse="₹120 Cr"
-                      desc="Full 112+ player pool, standard 10s clock & 25-man squad cap."
                     />
                     <FormatOption
                       active={format === 'turbo'}
@@ -239,7 +235,6 @@ export const IPLSessionModal: React.FC = () => {
                       icon={<Zap className="h-5 w-5 text-sky-600" />}
                       title="Turbo Blitz"
                       purse="₹90 Cr"
-                      desc="Rapid 5s countdown & ruthless bidding wars."
                     />
                     <FormatOption
                       active={format === 'mini'}
@@ -252,7 +247,6 @@ export const IPLSessionModal: React.FC = () => {
                       icon={<Target className="h-5 w-5 text-emerald-600" />}
                       title="Mini Auction"
                       purse="₹60 Cr"
-                      desc="Tighter purse, rapid 20-player squad limit & high pressure."
                     />
                     <FormatOption
                       active={format === 'custom'}
@@ -263,7 +257,6 @@ export const IPLSessionModal: React.FC = () => {
                       icon={<Wrench className="h-5 w-5 text-violet-600" />}
                       title="Custom Room"
                       purse={`₹${customPurse} Cr`}
-                      desc="Bespoke purse budget and customized competition rules."
                     />
                   </div>
 
@@ -485,7 +478,6 @@ interface FormatOptionProps {
   icon: React.ReactNode;
   title: string;
   purse: string;
-  desc: string;
 }
 
 const FormatOption: React.FC<FormatOptionProps> = ({
@@ -494,7 +486,6 @@ const FormatOption: React.FC<FormatOptionProps> = ({
   icon,
   title,
   purse,
-  desc,
 }) => (
   <button
     type="button"
@@ -512,6 +503,5 @@ const FormatOption: React.FC<FormatOptionProps> = ({
       </div>
       <span className="text-xs font-black text-amber-600 tabular-nums">{purse}</span>
     </div>
-    <p className="text-[11px] leading-relaxed text-slate-500 font-semibold">{desc}</p>
   </button>
 );
