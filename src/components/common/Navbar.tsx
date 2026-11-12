@@ -10,7 +10,8 @@ import {
   Users, 
   Calendar, 
   Home,
-  RotateCcw
+  RotateCcw,
+  Plus
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
@@ -23,8 +24,13 @@ export const Navbar: React.FC = () => {
     setSettingsOpen,
     resetAllGameData,
     auction,
-    leagueMatches
+    leagueMatches,
+    sessions,
+    activeSessionId,
+    setSessionModalOpen
   } = useGameStore();
+
+  const activeSession = sessions?.find((s) => s.id === activeSessionId) || sessions?.[0];
 
   const team = userTeam();
   const hasDraftedPlayers = (team?.squad.length || 0) > 0;
@@ -152,6 +158,21 @@ export const Navbar: React.FC = () => {
 
         {/* Right Stats & Controls */}
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* IPL Session Button */}
+          <button
+            type="button"
+            onClick={() => {
+              soundService.playClick();
+              setSessionModalOpen(true);
+            }}
+            className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-50 border border-amber-200/80 text-amber-900 hover:bg-amber-100 transition-colors shadow-sm text-xs font-bold"
+            title="Manage IPL Sessions"
+          >
+            <span className="text-[10px] text-amber-700 font-extrabold uppercase tracking-wider">Session</span>
+            <span className="truncate max-w-[110px] text-slate-900 font-black">{activeSession?.name || 'IPL 2025'}</span>
+            <Plus className="w-3 h-3 text-amber-600 stroke-[3]" />
+          </button>
+
           {/* Sound Toggle */}
           <button
             type="button"
