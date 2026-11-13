@@ -30,8 +30,10 @@ export const MainMenu: React.FC = () => {
     sessions,
     activeSessionId,
     startAuction,
+    settings,
   } = useGameStore();
 
+  const isDay = settings.theme === 'day';
   const team = userTeam();
   const activeSession = sessions.find((session) => session.id === activeSessionId);
   const auctionActive = auction.phase !== 'idle' && auction.phase !== 'completed';
@@ -80,16 +82,22 @@ export const MainMenu: React.FC = () => {
   };
 
   return (
-    <div className="relative isolate min-h-[calc(100vh-65px)] w-full overflow-hidden bg-[#070b14] px-3 py-4 sm:px-6 sm:py-8 text-white">
+    <div className={`dashboard relative isolate min-h-[calc(100vh-65px)] w-full overflow-hidden px-3 py-4 sm:px-6 sm:py-8 ${
+      isDay ? 'dashboard-day bg-[#f4f7fb] text-slate-900' : 'bg-[#070b14] text-white'
+    }`}>
       {/* Dynamic Stadium Floodlights reactive to Team Primary Color */}
       <div 
-        className="pointer-events-none absolute inset-0 -z-10 transition-all duration-700 opacity-40"
+        className={`pointer-events-none absolute inset-0 -z-10 transition-all duration-700 ${isDay ? 'opacity-20' : 'opacity-40'}`}
         style={{
           background: `radial-gradient(ellipse at 50% 0%, ${primaryColor}44 0%, transparent 60%), radial-gradient(ellipse at 15% 100%, ${secondaryColor}22 0%, transparent 50%), radial-gradient(ellipse at 85% 100%, #f59e0b22 0%, transparent 50%)`
         }}
       />
       {/* Stadium Grid Overlay */}
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(to_right,#ffffff07_1px,transparent_1px),linear-gradient(to_bottom,#ffffff07_1px,transparent_1px)] bg-[size:2.5rem_2.5rem] [mask-image:radial-gradient(ellipse_75%_65%_at_50%_35%,#000_70%,transparent_100%)]" />
+      <div className={`pointer-events-none absolute inset-0 -z-10 bg-[size:2.5rem_2.5rem] [mask-image:radial-gradient(ellipse_75%_65%_at_50%_35%,#000_70%,transparent_100%)] ${
+        isDay
+          ? 'bg-[linear-gradient(to_right,#0f172a08_1px,transparent_1px),linear-gradient(to_bottom,#0f172a08_1px,transparent_1px)]'
+          : 'bg-[linear-gradient(to_right,#ffffff07_1px,transparent_1px),linear-gradient(to_bottom,#ffffff07_1px,transparent_1px)]'
+      }`} />
 
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 sm:gap-6">
         
