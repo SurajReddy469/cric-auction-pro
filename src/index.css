@@ -45,9 +45,14 @@
 
 /* Shared night palette for the app's existing semantic Tailwind colors. */
 .dark body {
-  color: #e2e8f0;
-  background-color: #020617;
-  background-image: none;
+  color: #e2e8f0 !important;
+  background-color: #070b14 !important;
+  background-image: none !important;
+}
+
+.dark header {
+  background-color: rgba(15, 23, 42, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 .dark [class~="bg-white"],
@@ -130,21 +135,68 @@
 .dark [class~="bg-emerald-400"][class~="text-slate-900"],
 .dark [class~="bg-emerald-500"][class~="text-slate-900"] { color: #020617 !important; }
 
-/* Give the Dashboard a readable light palette when day mode is selected. */
-.day .dashboard-day [class*="bg-slate-950"] { background-color: #ffffff !important; }
-.day .dashboard-day [class*="bg-slate-900"] { background-color: #f8fafc !important; }
-.day .dashboard-day [class*="bg-slate-800"] { background-color: #e2e8f0 !important; }
+/* Comprehensive Universal Day Mode styling across EVERY component */
+.day body {
+  color: #0f172a !important;
+  background-color: #f4f7fb !important;
+}
 
-.day .dashboard-day [class~="text-white"] { color: #0f172a !important; }
-.day .dashboard-day [class~="text-slate-200"],
-.day .dashboard-day [class~="text-slate-300"] { color: #334155 !important; }
-.day .dashboard-day [class~="text-slate-400"] { color: #64748b !important; }
-.day .dashboard-day [class~="text-amber-300"],
-.day .dashboard-day [class~="text-amber-400"] { color: #a16207 !important; }
-.day .dashboard-day [class~="text-emerald-300"],
-.day .dashboard-day [class~="text-emerald-400"] { color: #047857 !important; }
-.day .dashboard-day [class~="text-blue-300"],
-.day .dashboard-day [class~="text-blue-400"] { color: #1d4ed8 !important; }
-.day .dashboard-day [class~="text-cyan-300"] { color: #0e7490 !important; }
+.day header {
+  background-color: rgba(255, 255, 255, 0.96) !important;
+  border-color: #e2e8f0 !important;
+}
 
-.day .dashboard-day [class*="border-white"] { border-color: #cbd5e1 !important; }
+.day [class*="bg-slate-950"]:not([class*="text-amber"]):not([class*="text-emerald"]):not([class*="bg-amber"]):not([class*="bg-emerald"]),
+.day [class*="bg-slate-900"]:not([class*="text-amber"]):not([class*="text-emerald"]):not([class*="bg-amber"]):not([class*="bg-emerald"]) {
+  background-color: #ffffff !important;
+}
+
+.day [class*="bg-slate-800"] {
+  background-color: #f1f5f9 !important;
+}
+
+.day [class*="bg-[#070b14]"],
+.day [class*="bg-[#0f172a]"] {
+  background-color: #f4f7fb !important;
+}
+
+.day [class*="border-white/10"],
+.day [class*="border-white/15"],
+.day [class*="border-white/20"],
+.day [class*="border-white/25"],
+.day [class*="border-white/30"],
+.day [class*="border-white"] {
+  border-color: #cbd5e1 !important;
+}
+
+.day [class~="text-white"]:not([class*="bg-gradient"]):not([class*="bg-amber"]):not([class*="bg-emerald"]):not([class*="bg-blue"]):not([class*="bg-indigo"]):not([class*="bg-rose"]):not([class*="bg-red"]) {
+  color: #0f172a !important;
+}
+
+.day [class~="text-slate-200"],
+.day [class~="text-slate-300"] {
+  color: #334155 !important;
+}
+
+.day [class~="text-slate-400"] {
+  color: #64748b !important;
+}
+
+.day [class~="text-amber-300"],
+.day [class~="text-amber-400"] {
+  color: #b45309 !important;
+}
+
+.day [class~="text-emerald-300"],
+.day [class~="text-emerald-400"] {
+  color: #047857 !important;
+}
+
+.day [class~="text-blue-300"],
+.day [class~="text-blue-400"] {
+  color: #1d4ed8 !important;
+}
+
+.day [class~="text-cyan-300"] {
+  color: #0e7490 !important;
+}

@@ -274,7 +274,7 @@ wss.on('connection', (ws) => {
             lastHeartbeat: Date.now()
           };
 
-          const rawRequired = Number(payload.requiredPlayers);
+          const rawRequired = Number(payload.maxParticipants || payload.requiredPlayers);
           const requiredPlayers = (!isNaN(rawRequired) && rawRequired >= 2 && rawRequired <= 10)
             ? rawRequired
             : 10;

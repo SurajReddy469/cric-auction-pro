@@ -247,6 +247,7 @@ class MultiplayerService {
     roomName: string;
     playerName: string;
     requiredPlayers: number;
+    maxParticipants?: number;
     purseCap: number;
     hostTeamId?: string;
     roomCode?: string;

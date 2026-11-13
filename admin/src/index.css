@@ -4,11 +4,11 @@
 
 @layer base {
   body {
-    @apply bg-slate-950 text-slate-100 font-sans antialiased overflow-x-hidden min-h-screen selection:bg-rose-500 selection:text-white;
+    @apply bg-slate-50 text-slate-900 font-sans antialiased overflow-x-hidden min-h-screen selection:bg-amber-200 selection:text-slate-950;
     background-image: 
-      radial-gradient(circle at 50% 0%, rgba(225, 29, 72, 0.12) 0%, transparent 60%),
-      radial-gradient(circle at 100% 30%, rgba(245, 158, 11, 0.08) 0%, transparent 40%),
-      radial-gradient(circle at 0% 80%, rgba(14, 165, 233, 0.08) 0%, transparent 40%);
+      radial-gradient(circle at 50% 0%, rgba(245, 158, 11, 0.08) 0%, transparent 60%),
+      radial-gradient(circle at 100% 30%, rgba(14, 165, 233, 0.06) 0%, transparent 40%),
+      radial-gradient(circle at 0% 80%, rgba(16, 185, 129, 0.05) 0%, transparent 40%);
     background-attachment: fixed;
   }
 }
@@ -20,20 +20,67 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: #f1f5f9;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(225, 29, 72, 0.4);
+  background: rgba(217, 119, 6, 0.35);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(225, 29, 72, 0.7);
+  background: rgba(217, 119, 6, 0.6);
 }
 
 .text-gold-gradient {
-  background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 50%, #d97706 100%);
+  background: linear-gradient(135deg, #92400e 0%, #b45309 50%, #78350f 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+/* Lighten the few legacy night-mode surfaces used by the shared admin panel. */
+.admin-day [class~="bg-slate-950"] { background-color: #f1f5f9 !important; }
+.admin-day [class~="bg-slate-900"] { background-color: #ffffff !important; }
+.admin-day [class~="bg-slate-800"],
+.admin-day [class~="bg-slate-800/80"] { background-color: #f8fafc !important; }
+.admin-day [class~="hover:bg-slate-800"]:hover { background-color: #e2e8f0 !important; }
+
+.admin-day [class~="border-slate-800"],
+.admin-day [class~="border-slate-700"] { border-color: #e2e8f0 !important; }
+
+.admin-day [class~="bg-slate-900"][class~="text-amber-400"] {
+  background-color: #fef3c7 !important;
+  color: #92400e !important;
+}
+.admin-day [class~="bg-slate-900"][class~="text-sky-400"] {
+  background-color: #e0f2fe !important;
+  color: #075985 !important;
+}
+.admin-day [class~="bg-slate-900"][class~="text-rose-400"] {
+  background-color: #fff1f2 !important;
+  color: #9f1239 !important;
+}
+.admin-day [class~="bg-slate-900"][class~="text-white"] {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+/* Improve text contrast inside the shared admin panel's former dark cards. */
+.admin-day .bg-slate-900.text-white { color: #0f172a !important; }
+.admin-day .bg-slate-900.text-white [class~="text-white"] { color: #0f172a !important; }
+.admin-day .bg-slate-900.text-white [class~="text-slate-300"] { color: #475569 !important; }
+.admin-day .bg-slate-900.text-white [class~="text-slate-400"] { color: #64748b !important; }
+.admin-day .bg-slate-900.text-white [class~="text-amber-400"] { color: #92400e !important; }
+.admin-day .bg-slate-900.text-white [class~="text-emerald-400"] { color: #047857 !important; }
+.admin-day .bg-slate-900.text-white [class~="hover:text-white"]:hover { color: #1e293b !important; }
+.admin-day .bg-slate-900.text-white [class~="bg-emerald-600"][class~="text-white"],
+.admin-day .bg-slate-900.text-white [class~="bg-rose-600"][class~="text-white"] { color: #ffffff !important; }
+
+.admin-day [class~="bg-rose-500/20"] {
+  background-color: #fff1f2 !important;
+  color: #be123c !important;
+}
+.admin-day [class~="bg-rose-500/20"]:hover {
+  background-color: #ffe4e6 !important;
+  color: #9f1239 !important;
 }

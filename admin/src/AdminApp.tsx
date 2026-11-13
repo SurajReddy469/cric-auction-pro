@@ -4,9 +4,9 @@ import { ExternalLink } from 'lucide-react';
 
 export const AdminApp: React.FC = () => {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between">
+    <div className="admin-day min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-between">
       {/* Top Standalone Header Bar */}
-      <div className="bg-slate-900 border-b border-slate-800 px-4 py-3 shadow-md">
+      <div className="bg-white border-b border-slate-200 px-4 py-3 shadow-sm">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <a
             href="https://lbs-poultry-shopping-buyers.trycloudflare.com"
@@ -24,7 +24,7 @@ export const AdminApp: React.FC = () => {
         <AdminPanel />
       </main>
 
-      <footer className="text-center text-xs text-slate-500 py-3 border-t border-slate-900">
+      <footer className="text-center text-xs text-slate-500 py-3 border-t border-slate-200">
         IPL Auction Commissioner Admin Website • Standalone Controller Portal
       </footer>
     </div>

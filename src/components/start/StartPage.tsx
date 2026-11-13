@@ -40,7 +40,10 @@ export const StartPage: React.FC = () => {
     auction,
     leagueMatches,
     setScreen,
+    settings,
   } = useGameStore();
+
+  const isDay = settings.theme === 'day';
 
   const [name, setName] = useState(
     profile.name && profile.name !== 'Vikram Sengupta' && profile.name !== 'Manager'
@@ -176,19 +179,29 @@ export const StartPage: React.FC = () => {
   };
 
   return (
-    <div className="relative isolate min-h-[calc(100vh-65px)] w-full overflow-hidden bg-[#070b14] px-3 py-4 sm:px-6 sm:py-8 text-white flex items-center justify-center">
+    <div className={`relative isolate min-h-[calc(100vh-65px)] w-full overflow-hidden px-3 py-4 sm:px-6 sm:py-8 flex items-center justify-center transition-colors duration-500 ${
+      isDay ? 'bg-[#f4f7fb] text-slate-900' : 'bg-[#070b14] text-white'
+    }`}>
       {/* Dynamic Stadium Floodlights & Ambient Glow reactive to Selected Team Color */}
       <div 
-        className="pointer-events-none absolute inset-0 -z-10 transition-all duration-700 opacity-45"
+        className={`pointer-events-none absolute inset-0 -z-10 transition-all duration-700 ${isDay ? 'opacity-25' : 'opacity-45'}`}
         style={{
           background: `radial-gradient(ellipse at 50% 0%, ${selectedTeam.primaryColor}55 0%, transparent 60%), radial-gradient(ellipse at 15% 100%, ${selectedTeam.secondaryColor || '#f59e0b'}33 0%, transparent 50%), radial-gradient(ellipse at 85% 100%, #06b6d422 0%, transparent 50%)`
         }}
       />
       {/* Stadium Pitch Grid Overlay */}
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(to_right,#ffffff07_1px,transparent_1px),linear-gradient(to_bottom,#ffffff07_1px,transparent_1px)] bg-[size:2.5rem_2.5rem] [mask-image:radial-gradient(ellipse_75%_65%_at_50%_35%,#000_70%,transparent_100%)]" />
+      <div className={`pointer-events-none absolute inset-0 -z-10 bg-[size:2.5rem_2.5rem] [mask-image:radial-gradient(ellipse_75%_65%_at_50%_35%,#000_70%,transparent_100%)] ${
+        isDay 
+          ? 'bg-[linear-gradient(to_right,#0f172a0a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a0a_1px,transparent_1px)]'
+          : 'bg-[linear-gradient(to_right,#ffffff07_1px,transparent_1px),linear-gradient(to_bottom,#ffffff07_1px,transparent_1px)]'
+      }`} />
 
       {/* Main Command Card Container (Strictly 0 <section> tags) */}
-      <div className="relative w-full max-w-4xl overflow-hidden rounded-2xl sm:rounded-3xl border border-white/15 bg-slate-900/95 shadow-2xl backdrop-blur-2xl transition-all duration-500 hover:border-white/25">
+      <div className={`relative w-full max-w-4xl overflow-hidden rounded-2xl sm:rounded-3xl border shadow-2xl backdrop-blur-2xl transition-all duration-500 ${
+        isDay 
+          ? 'border-slate-200/90 bg-white/95 text-slate-900 shadow-slate-300/60' 
+          : 'border-white/15 bg-slate-900/95 text-white hover:border-white/25'
+      }`}>
         
         {/* Dynamic Top Franchise Aura Bar */}
         <div 
@@ -201,7 +214,7 @@ export const StartPage: React.FC = () => {
           
           {/* Header Title & Subtitle */}
           <div className="text-center space-y-1.5 sm:space-y-2">
-            <div className="inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1 text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-amber-300 shadow-sm">
+            <div className="inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1 text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-amber-500 dark:text-amber-300 shadow-sm">
               <Sparkles className="h-3 w-3 text-amber-400 animate-pulse" />
               <span>IPL 2025 Mega Auction War Room</span>
             </div>
@@ -210,7 +223,7 @@ export const StartPage: React.FC = () => {
               ENTER THE <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-yellow-200 to-amber-500">ARENA</span>
             </h1>
 
-            <p className="text-xs sm:text-sm text-slate-300 max-w-xl mx-auto font-medium">
+            <p className={`text-xs sm:text-sm max-w-xl mx-auto font-medium ${isDay ? 'text-slate-600' : 'text-slate-300'}`}>
               Accredit your manager profile, select your franchise, and claim your auction paddle.
             </p>
           </div>
@@ -220,15 +233,19 @@ export const StartPage: React.FC = () => {
             <motion.div 
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 shadow-md"
+              className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 shadow-md ${
+                isDay
+                  ? 'border-amber-400/50 bg-amber-50 text-amber-900'
+                  : 'border-amber-500/40 bg-amber-500/10 text-amber-200'
+              }`}
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 <span className="relative flex h-2.5 w-2.5 shrink-0">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
                 </span>
-                <span className="truncate text-xs font-bold text-amber-200">
-                  In-progress tournament exists for <span className="text-white font-black">{teams.find(t => t.id === userTeamId)?.name || 'Your Team'}</span>
+                <span className="truncate text-xs font-bold">
+                  In-progress tournament exists for <span className="font-black">{teams.find(t => t.id === userTeamId)?.name || 'Your Team'}</span>
                 </span>
               </div>
               <button
@@ -244,23 +261,25 @@ export const StartPage: React.FC = () => {
 
           {/* Manager Identity Card with Animated Neon Aura Effect & Mandatory Validation (Strictly 0 <section> tags) */}
           <div className="relative rounded-2xl p-[2px] transition-all duration-500 bg-gradient-to-r from-amber-500/40 via-yellow-400/50 to-amber-600/40 hover:from-amber-400/60 hover:via-yellow-300/70 hover:to-amber-500/60 focus-within:from-amber-400 focus-within:via-yellow-300 focus-within:to-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.15)] focus-within:shadow-[0_0_35px_rgba(245,158,11,0.35)]">
-            <div className="rounded-[14px] bg-slate-950/90 p-3.5 sm:p-5 space-y-3 shadow-inner backdrop-blur-xl">
+            <div className={`rounded-[14px] p-3.5 sm:p-5 space-y-3 shadow-inner backdrop-blur-xl ${
+              isDay ? 'bg-slate-50/95 border border-slate-200/80 text-slate-900' : 'bg-slate-950/90 text-white'
+            }`}>
               <div className="flex items-center justify-between">
-                <label htmlFor="manager-name" className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-200">
-                  <IdCard className="h-4 w-4 text-amber-400" />
+                <label htmlFor="manager-name" className={`flex items-center gap-2 text-xs font-black uppercase tracking-wider ${isDay ? 'text-slate-800' : 'text-slate-200'}`}>
+                  <IdCard className="h-4 w-4 text-amber-500" />
                   <span>Manager Identity Name</span>
-                  <span className="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                  <span className="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-500 dark:text-rose-300 border border-rose-500/40">
                     Mandatory
                   </span>
                 </label>
                 <div className="flex items-center gap-2">
                   {name.trim().length >= 2 ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
                       <Check className="h-3 w-3 stroke-[3]" />
                       <span>Ready</span>
                     </span>
                   ) : (
-                    <span className="text-[10px] font-mono font-bold text-amber-400/90">
+                    <span className="text-[10px] font-mono font-bold text-amber-600 dark:text-amber-400">
                       Min 2 chars
                     </span>
                   )}
@@ -271,7 +290,7 @@ export const StartPage: React.FC = () => {
               </div>
 
               <div className="relative group">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-amber-400 transition-transform group-focus-within:scale-110">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-amber-500 transition-transform group-focus-within:scale-110">
                   <span className="text-base sm:text-lg">🏏</span>
                 </div>
                 <input
@@ -284,12 +303,14 @@ export const StartPage: React.FC = () => {
                     if (nameError) setNameError(null);
                   }}
                   placeholder="Enter your name (e.g. Vikram Sengupta)"
-                  className={`w-full rounded-xl border-2 bg-slate-900/90 pl-11 pr-10 py-2.5 sm:py-3 text-base sm:text-lg font-extrabold text-white placeholder:text-slate-500 placeholder:font-medium outline-none transition duration-300 shadow-inner ${
+                  className={`w-full rounded-xl border-2 pl-11 pr-10 py-2.5 sm:py-3 text-base sm:text-lg font-extrabold outline-none transition duration-300 shadow-inner ${
                     nameError
                       ? 'border-rose-500 focus:ring-4 focus:ring-rose-500/30'
                       : isNameValid
                       ? 'border-emerald-500/60 focus:border-amber-400 focus:ring-4 focus:ring-amber-400/25'
-                      : 'border-white/15 focus:border-amber-400 focus:ring-4 focus:ring-amber-400/20'
+                      : isDay
+                      ? 'border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20'
+                      : 'border-white/15 bg-slate-900/90 text-white placeholder:text-slate-500 focus:border-amber-400 focus:ring-4 focus:ring-amber-400/20'
                   }`}
                 />
                 {name.length > 0 && (
@@ -299,7 +320,7 @@ export const StartPage: React.FC = () => {
                       setName('');
                       if (nameError) setNameError(null);
                     }}
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-white transition"
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-900 dark:hover:text-white transition"
                     title="Clear name"
                   >
                     <X className="h-4 w-4" />
@@ -308,7 +329,7 @@ export const StartPage: React.FC = () => {
               </div>
 
               {nameError && (
-                <div className="flex items-center gap-1.5 text-xs font-bold text-rose-400 pt-0.5 animate-pulse">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-rose-500 dark:text-rose-400 pt-0.5 animate-pulse">
                   <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                   <span>{nameError}</span>
                 </div>
@@ -320,8 +341,8 @@ export const StartPage: React.FC = () => {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Flame className="h-4 w-4 text-amber-400" />
-                <span className="text-xs font-black uppercase tracking-wider text-slate-200">
+                <Flame className="h-4 w-4 text-amber-500" />
+                <span className={`text-xs font-black uppercase tracking-wider ${isDay ? 'text-slate-800' : 'text-slate-200'}`}>
                   Select Your Official IPL Franchise
                 </span>
               </div>
@@ -351,7 +372,9 @@ export const StartPage: React.FC = () => {
                     className={`group relative flex items-center gap-2 rounded-xl border p-2 sm:p-2.5 text-left transition-all ${
                       isSelected
                         ? 'shadow-lg ring-2'
-                        : 'border-white/10 bg-slate-950/70 hover:border-white/30 hover:bg-slate-950'
+                        : isDay
+                        ? 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-white text-slate-900'
+                        : 'border-white/10 bg-slate-950/70 hover:border-white/30 hover:bg-slate-950 text-white'
                     }`}
                     style={{
                       borderColor: isSelected ? t.primaryColor : undefined,
@@ -362,7 +385,7 @@ export const StartPage: React.FC = () => {
                     <TeamBadge teamId={t.id} size="sm" />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between">
-                        <span className="truncate text-xs font-black text-white">{t.shortName}</span>
+                        <span className={`truncate text-xs font-black ${isDay && !isSelected ? 'text-slate-900' : 'text-white'}`}>{t.shortName}</span>
                         {isSelected && (
                           <Check 
                             className="h-3 w-3 stroke-[3]" 
@@ -371,9 +394,9 @@ export const StartPage: React.FC = () => {
                         )}
                       </div>
                       <div className="flex items-center gap-1 text-[9px] text-slate-400 font-bold truncate">
-                        <Trophy className="h-2.5 w-2.5 fill-current text-amber-400 shrink-0" />
+                        <Trophy className="h-2.5 w-2.5 fill-current text-amber-500 shrink-0" />
                         <span>{t.trophies}</span>
-                        <span className="text-slate-600">·</span>
+                        <span className="text-slate-400">·</span>
                         <span className="truncate">{t.city}</span>
                       </div>
                     </div>
@@ -390,7 +413,9 @@ export const StartPage: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.2 }}
-                className="rounded-xl border p-3.5 sm:p-4 bg-slate-950/90 shadow-inner"
+                className={`rounded-xl border p-3.5 sm:p-4 shadow-sm ${
+                  isDay ? 'bg-slate-50/95 border-slate-200 text-slate-900' : 'bg-slate-950/90 text-white'
+                }`}
                 style={{ borderColor: `${selectedTeam.primaryColor}55` }}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -398,32 +423,32 @@ export const StartPage: React.FC = () => {
                     <TeamBadge teamId={selectedTeam.id} size="md" />
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="truncate text-base sm:text-lg font-black text-white">{effectiveName}</span>
+                        <span className={`truncate text-base sm:text-lg font-black ${isDay ? 'text-slate-900' : 'text-white'}`}>{effectiveName}</span>
                         {selectedTeam.trophies > 0 ? (
-                          <span className="rounded bg-amber-400/20 px-1.5 py-0.5 text-[9px] font-black uppercase text-amber-300 border border-amber-400/40 flex items-center gap-1">
-                            <Trophy className="h-2.5 w-2.5 fill-current text-amber-400" />
+                          <span className="rounded bg-amber-400/20 px-1.5 py-0.5 text-[9px] font-black uppercase text-amber-600 dark:text-amber-300 border border-amber-400/40 flex items-center gap-1">
+                            <Trophy className="h-2.5 w-2.5 fill-current text-amber-500" />
                             {selectedTeam.trophies}x Champion
                           </span>
                         ) : (
-                          <span className="rounded bg-blue-500/20 px-1.5 py-0.5 text-[9px] font-black uppercase text-blue-300 border border-blue-500/40">
+                          <span className="rounded bg-blue-500/20 px-1.5 py-0.5 text-[9px] font-black uppercase text-blue-600 dark:text-blue-300 border border-blue-500/40">
                             Chasing 1st Trophy
                           </span>
                         )}
                       </div>
-                      <div className="text-[11px] text-slate-300 font-semibold truncate mt-0.5">
+                      <div className={`text-[11px] font-semibold truncate mt-0.5 ${isDay ? 'text-slate-600' : 'text-slate-300'}`}>
                         {selectedTeam.name}
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-white/10">
+                  <div className={`flex items-center justify-between sm:justify-end gap-4 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 ${isDay ? 'border-slate-200' : 'border-white/10'}`}>
                     <div>
                       <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Purse Allocation</div>
-                      <div className="text-sm font-black font-mono text-amber-400">₹{purseCap}.0 Cr</div>
+                      <div className="text-sm font-black font-mono text-amber-500 dark:text-amber-400">₹{purseCap}.0 Cr</div>
                     </div>
                     <div>
                       <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Squad Target</div>
-                      <div className="text-sm font-black font-mono text-emerald-400">25 Slots</div>
+                      <div className="text-sm font-black font-mono text-emerald-600 dark:text-emerald-400">25 Slots</div>
                     </div>
                   </div>
                 </div>
@@ -434,7 +459,7 @@ export const StartPage: React.FC = () => {
 
           {/* Tab Controls: Create Session vs Join Room */}
           <div className="space-y-4 pt-1">
-            <div className="grid grid-cols-2 rounded-xl bg-slate-950 p-1 border border-white/10" role="tablist" aria-label="Session action">
+            <div className={`grid grid-cols-2 rounded-xl p-1 border ${isDay ? 'bg-slate-100 border-slate-200' : 'bg-slate-950 border-white/10'}`} role="tablist" aria-label="Session action">
               <button 
                 type="button" 
                 role="tab" 
@@ -443,7 +468,7 @@ export const StartPage: React.FC = () => {
                 className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs sm:text-sm font-black transition-all ${
                   tab === 'create' 
                     ? 'bg-amber-400 text-slate-950 shadow-md' 
-                    : 'text-slate-400 hover:text-white'
+                    : isDay ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white'
                 }`}
               >
                 <Plus className="h-4 w-4 stroke-[3]" />
@@ -457,7 +482,7 @@ export const StartPage: React.FC = () => {
                 className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs sm:text-sm font-black transition-all ${
                   tab === 'login' 
                     ? 'bg-amber-400 text-slate-950 shadow-md' 
-                    : 'text-slate-400 hover:text-white'
+                    : isDay ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white'
                 }`}
               >
                 <LogIn className="h-4 w-4 stroke-[3]" />
@@ -466,7 +491,9 @@ export const StartPage: React.FC = () => {
             </div>
 
             {multiplayerError && (
-              <p role="alert" className="rounded-xl border border-rose-400/30 bg-rose-950/60 px-3.5 py-2.5 text-xs font-bold text-rose-200">
+              <p role="alert" className={`rounded-xl border px-3.5 py-2.5 text-xs font-bold ${
+                isDay ? 'border-rose-300 bg-rose-50 text-rose-800' : 'border-rose-400/30 bg-rose-950/60 text-rose-200'
+              }`}>
                 {multiplayerError}
               </p>
             )}
@@ -477,7 +504,7 @@ export const StartPage: React.FC = () => {
                 {/* Session Name & Format Controls */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-black uppercase tracking-wider text-slate-300">
+                    <label className={`text-[11px] font-black uppercase tracking-wider ${isDay ? 'text-slate-700' : 'text-slate-300'}`}>
                       Session Name
                     </label>
                     <input 
@@ -485,12 +512,16 @@ export const StartPage: React.FC = () => {
                       onChange={(e) => setSessionName(e.target.value)} 
                       maxLength={40} 
                       placeholder="Name your tournament" 
-                      className="w-full rounded-xl border border-white/15 bg-slate-950 px-3.5 py-2.5 text-sm font-bold text-white outline-none focus:border-amber-400 transition" 
+                      className={`w-full rounded-xl border px-3.5 py-2.5 text-sm font-bold outline-none focus:border-amber-400 transition ${
+                        isDay 
+                          ? 'border-slate-300 bg-white text-slate-900 placeholder:text-slate-400' 
+                          : 'border-white/15 bg-slate-950 text-white placeholder:text-slate-500'
+                      }`} 
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-black uppercase tracking-wider text-slate-300">
+                    <label className={`text-[11px] font-black uppercase tracking-wider ${isDay ? 'text-slate-700' : 'text-slate-300'}`}>
                       Auction Format
                     </label>
                     <div className="grid grid-cols-3 gap-1.5">
@@ -504,7 +535,9 @@ export const StartPage: React.FC = () => {
                             onClick={() => handleSelectFormat(fmt)}
                             className={`rounded-xl border py-2 px-1 text-center font-black transition capitalize active:scale-95 ${
                               isSelected
-                                ? 'border-amber-400 bg-amber-400/20 text-amber-300 ring-1 ring-amber-400 shadow-sm'
+                                ? 'border-amber-400 bg-amber-400/20 text-amber-600 dark:text-amber-300 ring-1 ring-amber-400 shadow-sm'
+                                : isDay
+                                ? 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:text-slate-900'
                                 : 'border-white/10 bg-slate-950 text-slate-400 hover:border-white/20 hover:text-white'
                             }`}
                           >
@@ -519,7 +552,7 @@ export const StartPage: React.FC = () => {
 
                 {/* Game Type Selector: Solo vs Multiplayer */}
                 <div className="space-y-1.5">
-                  <span className="text-[11px] font-black uppercase tracking-wider text-slate-300">
+                  <span className={`text-[11px] font-black uppercase tracking-wider ${isDay ? 'text-slate-700' : 'text-slate-300'}`}>
                     Gameplay Mode
                   </span>
                   <div className="grid grid-cols-2 gap-2.5">
@@ -529,13 +562,15 @@ export const StartPage: React.FC = () => {
                       onClick={() => { soundService.playClick(); setMode('singleplayer'); }} 
                       className={`flex items-center justify-center gap-2.5 rounded-xl border p-3 text-left transition-all active:scale-98 ${
                         mode === 'singleplayer' 
-                          ? 'border-amber-400 bg-amber-400/20 text-white ring-1 ring-amber-400 shadow-sm' 
+                          ? 'border-amber-400 bg-amber-400/20 text-amber-900 dark:text-white ring-1 ring-amber-400 shadow-sm' 
+                          : isDay
+                          ? 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
                           : 'border-white/10 bg-slate-950 text-slate-400 hover:border-white/20'
                       }`}
                     >
-                      <UserRound className="h-4 w-4 text-amber-400" />
+                      <UserRound className="h-4 w-4 text-amber-500" />
                       <div>
-                        <div className="text-xs font-black">Single-Player</div>
+                        <div className={`text-xs font-black ${isDay ? 'text-slate-900' : 'text-white'}`}>Single-Player</div>
                         <div className="text-[10px] text-slate-400">Solo vs 9 AI Bots</div>
                       </div>
                     </button>
@@ -546,13 +581,15 @@ export const StartPage: React.FC = () => {
                       onClick={() => { soundService.playClick(); setMode('multiplayer'); }} 
                       className={`flex items-center justify-center gap-2.5 rounded-xl border p-3 text-left transition-all active:scale-98 ${
                         mode === 'multiplayer' 
-                          ? 'border-emerald-400 bg-emerald-400/20 text-white ring-1 ring-emerald-400 shadow-sm' 
+                          ? 'border-emerald-400 bg-emerald-400/20 text-emerald-900 dark:text-white ring-1 ring-emerald-400 shadow-sm' 
+                          : isDay
+                          ? 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
                           : 'border-white/10 bg-slate-950 text-slate-400 hover:border-white/20'
                       }`}
                     >
-                      <Radio className="h-4 w-4 animate-pulse text-emerald-400" />
+                      <Radio className="h-4 w-4 animate-pulse text-emerald-500" />
                       <div>
-                        <div className="text-xs font-black">Multiplayer</div>
+                        <div className={`text-xs font-black ${isDay ? 'text-slate-900' : 'text-white'}`}>Multiplayer</div>
                         <div className="text-[10px] text-slate-400">Humans Only · 0 Bots</div>
                       </div>
                     </button>
@@ -561,13 +598,17 @@ export const StartPage: React.FC = () => {
 
                 {/* League Size (Auction Member Count) - Requirement 6 */}
                 {mode === 'multiplayer' && (
-                  <div className="space-y-2 p-3 sm:p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-950/20 backdrop-blur-sm">
+                  <div className={`space-y-2 p-3 sm:p-3.5 rounded-xl border backdrop-blur-sm ${
+                    isDay ? 'border-emerald-400/40 bg-emerald-50/70' : 'border-emerald-500/30 bg-emerald-950/20'
+                  }`}>
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-emerald-300">
+                      <div className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider ${
+                        isDay ? 'text-emerald-800' : 'text-emerald-300'
+                      }`}>
                         <Users className="h-3.5 w-3.5" />
                         <span>Auction Member Capacity</span>
                       </div>
-                      <span className="text-xs font-mono font-black text-emerald-400">
+                      <span className={`text-xs font-mono font-black ${isDay ? 'text-emerald-700' : 'text-emerald-400'}`}>
                         {requiredPlayers} Managers
                       </span>
                     </div>
@@ -585,7 +626,9 @@ export const StartPage: React.FC = () => {
                             }}
                             className={`py-2 px-1 rounded-xl text-center font-black transition-all active:scale-95 ${
                               isSelected
-                                ? 'bg-emerald-400 text-slate-950 ring-2 ring-emerald-300 shadow-lg font-black scale-[1.02]'
+                                ? 'bg-emerald-500 text-slate-950 ring-2 ring-emerald-300 shadow-lg font-black scale-[1.02]'
+                                : isDay
+                                ? 'bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:border-emerald-400/50'
                                 : 'bg-slate-900/90 border border-white/10 text-slate-400 hover:text-white hover:border-emerald-400/50'
                             }`}
                           >
@@ -598,7 +641,7 @@ export const StartPage: React.FC = () => {
                       })}
                     </div>
 
-                    <div className="text-[10px] text-slate-400 font-medium leading-relaxed">
+                    <div className={`text-[10px] font-medium leading-relaxed ${isDay ? 'text-slate-600' : 'text-slate-400'}`}>
                       {requiredPlayers === 10 
                         ? 'Full 10-franchise IPL tournament. All 10 teams managed by humans.'
                         : `Custom ${requiredPlayers}-player room. Auction starts once all ${requiredPlayers} managers ready up.`}
@@ -638,7 +681,7 @@ export const StartPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleOpenDashboard}
-                      className="w-full py-2.5 text-center text-xs font-bold text-slate-400 hover:text-amber-400 transition"
+                      className={`w-full py-2.5 text-center text-xs font-bold transition ${isDay ? 'text-slate-500 hover:text-amber-600' : 'text-slate-400 hover:text-amber-400'}`}
                     >
                       Or open Franchise Dashboard first →
                     </button>
@@ -648,7 +691,7 @@ export const StartPage: React.FC = () => {
             ) : (
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-black uppercase tracking-wider text-slate-300">
+                  <label className={`text-[11px] font-black uppercase tracking-wider ${isDay ? 'text-slate-700' : 'text-slate-300'}`}>
                     Online Room Code
                   </label>
                   <input 
@@ -656,7 +699,11 @@ export const StartPage: React.FC = () => {
                     onChange={(e) => setRoomCode(e.target.value.toUpperCase())} 
                     maxLength={8} 
                     placeholder="Enter 6-digit code (e.g. JDLJ77)" 
-                    className="w-full rounded-xl border-2 border-white/15 bg-slate-950 px-4 py-3 text-center text-lg font-black font-mono tracking-widest text-amber-400 placeholder-slate-600 outline-none focus:border-amber-400 transition" 
+                    className={`w-full rounded-xl border-2 px-4 py-3 text-center text-lg font-black font-mono tracking-widest text-amber-500 dark:text-amber-400 outline-none focus:border-amber-400 transition ${
+                      isDay
+                        ? 'border-slate-300 bg-white placeholder-slate-400 text-slate-900'
+                        : 'border-white/15 bg-slate-950 placeholder-slate-600 text-amber-400'
+                    }`} 
                   />
                 </div>
 
