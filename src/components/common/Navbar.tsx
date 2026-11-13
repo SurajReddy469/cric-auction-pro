@@ -121,7 +121,7 @@ export const Navbar: React.FC = () => {
         </div>
 
         {/* Desktop Navigation Screen Links */}
-        <nav className={`${currentScreen === 'start' ? 'hidden' : 'hidden md:flex'} items-center gap-1 bg-slate-100 dark:bg-slate-950 p-1 rounded-xl border border-slate-200 dark:border-slate-800`}>
+        <nav className={`${currentScreen === 'start' ? 'hidden' : 'hidden xl:flex'} items-center gap-1 bg-slate-100 dark:bg-slate-950 p-1 rounded-xl border border-slate-200 dark:border-slate-800`}>
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentScreen === item.screen;
@@ -225,7 +225,7 @@ export const Navbar: React.FC = () => {
       </div>
 
       {/* Mobile Phone Screen Navigation Bar */}
-      <div className={`${currentScreen === 'start' ? 'hidden' : 'grid'} ${navItems.length === 5 ? 'grid-cols-5' : 'grid-cols-4'} md:hidden px-2 py-1 border-t border-slate-200 dark:border-slate-800 gap-1 bg-slate-50/90 dark:bg-slate-900/90 text-center`}>
+      <div className={`${currentScreen === 'start' ? 'hidden' : 'grid'} ${navItems.length > 5 ? 'grid-cols-6' : 'grid-cols-5'} xl:hidden px-2 py-1 border-t border-slate-200 dark:border-slate-800 gap-1 bg-slate-50/90 dark:bg-slate-900/90 text-center`}>
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentScreen === item.screen;
