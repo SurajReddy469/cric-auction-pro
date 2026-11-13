@@ -12,6 +12,14 @@ const CAREER_KEY = 'cric_auction_career_data';
 const CAMPAIGN_KEY = 'cric_auction_active_campaign';
 const SESSIONS_KEY = 'cric_auction_ipl_sessions';
 const ACTIVE_SESSION_ID_KEY = 'cric_auction_active_session_id';
+const ACTIVE_MP_SESSION_KEY = 'cric_auction_active_mp_session';
+const LAST_SCREEN_KEY = 'cric_auction_last_screen';
+
+export interface ActiveMultiplayerSession {
+  roomCode: string;
+  playerName: string;
+  timestamp: number;
+}
 
 export interface GameSettings {
   timerSpeed: 'slow' | 'standard' | 'fast';
@@ -221,6 +229,61 @@ export class StorageService {
       getStorage()?.setItem(ACTIVE_SESSION_ID_KEY, id);
     } catch (e) {
       console.warn('Failed to save active session ID', e);
+    }
+  }
+
+  // Active Online Multiplayer Session Persistence
+  static loadActiveMultiplayerSession(): ActiveMultiplayerSession | null {
+    try {
+      const data = getStorage()?.getItem(ACTIVE_MP_SESSION_KEY);
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (parsed && parsed.roomCode) return parsed;
+      }
+    } catch (e) {
+      console.warn('Failed to load active MP session', e);
+    }
+    return null;
+  }
+
+  static saveActiveMultiplayerSession(session: ActiveMultiplayerSession) {
+    try {
+      getStorage()?.setItem(ACTIVE_MP_SESSION_KEY, JSON.stringify(session));
+    } catch (e) {
+      console.warn('Failed to save active MP session', e);
+    }
+  }
+
+  static clearActiveMultiplayerSession() {
+    try {
+      getStorage()?.removeItem(ACTIVE_MP_SESSION_KEY);
+    } catch (e) {
+      console.warn('Failed to clear active MP session', e);
+    }
+  }
+
+  // Active Screen Persistence
+  static loadLastScreen(): string | null {
+    try {
+      return getStorage()?.getItem(LAST_SCREEN_KEY) || null;
+    } catch {
+      return null;
+    }
+  }
+
+  static saveLastScreen(screen: string) {
+    try {
+      getStorage()?.setItem(LAST_SCREEN_KEY, screen);
+    } catch (e) {
+      console.warn('Failed to save last screen', e);
+    }
+  }
+
+  static clearLastScreen() {
+    try {
+      getStorage()?.removeItem(LAST_SCREEN_KEY);
+    } catch (e) {
+      console.warn('Failed to clear last screen', e);
     }
   }
 }

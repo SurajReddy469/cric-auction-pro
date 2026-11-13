@@ -241,15 +241,6 @@ wss.on('connection', (ws) => {
     try {
       const message = JSON.parse(messageBuffer.toString());
       const { type, payload } = message;
-      const connectedRoom = rooms.get(ws.roomCode);
-      if (connectedRoom && connectedRoom.requiredPlayers !== REQUIRED_PLAYERS) {
-        connectedRoom.requiredPlayers = REQUIRED_PLAYERS;
-        connectedRoom.updatedAt = Date.now();
-        broadcastToRoom(connectedRoom.roomCode, {
-          type: 'ROOM_UPDATED',
-          payload: { room: connectedRoom }
-        });
-      }
 
       switch (type) {
         case 'CREATE_ROOM': {
@@ -265,18 +256,28 @@ wss.on('connection', (ws) => {
             ws.send(JSON.stringify({ type: 'ERROR', payload: { message: `Room #${roomCode} already exists. Choose another code.` } }));
             return;
           }
-          const participantId = `player_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+          const participantId = payload.playerId || `player_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
           
+          const roomTeams = (payload.teams && payload.teams.length > 0) ? payload.teams : JSON.parse(JSON.stringify(DEFAULT_TEAMS));
+          const hostTeamId = (payload.hostTeamId && roomTeams.some(t => t.id === payload.hostTeamId))
+            ? payload.hostTeamId
+            : null;
+
           const hostParticipant = {
             id: participantId,
             name: payload.playerName || 'Host Manager',
-            teamId: null,
+            teamId: hostTeamId,
             isHost: true,
             isReady: false,
             isConnected: true,
             joinedAt: Date.now(),
             lastHeartbeat: Date.now()
           };
+
+          const rawRequired = Number(payload.requiredPlayers);
+          const requiredPlayers = (!isNaN(rawRequired) && rawRequired >= 2 && rawRequired <= 10)
+            ? rawRequired
+            : 10;
 
           const newRoom = {
             roomCode,
@@ -285,10 +286,10 @@ wss.on('connection', (ws) => {
             status: 'lobby',
             isHumanOnly: true,
             hasBots: false,
-            requiredPlayers: REQUIRED_PLAYERS,
+            requiredPlayers,
             purseCap: payload.purseCap || 120,
             participants: [hostParticipant],
-            teams: (payload.teams && payload.teams.length > 0) ? payload.teams : JSON.parse(JSON.stringify(DEFAULT_TEAMS)),
+            teams: roomTeams,
             players: (payload.players && payload.players.length > 0) ? payload.players : JSON.parse(JSON.stringify(DEFAULT_PLAYERS)),
             createdAt: Date.now(),
             updatedAt: Date.now()
@@ -324,15 +325,6 @@ wss.on('connection', (ws) => {
               payload: { message: `Room #${code} not found. Check the code and try again.` }
             }));
             return;
-          }
-
-          if (room.requiredPlayers !== REQUIRED_PLAYERS) {
-            room.requiredPlayers = REQUIRED_PLAYERS;
-            room.updatedAt = Date.now();
-            broadcastToRoom(code, {
-              type: 'ROOM_UPDATED',
-              payload: { room }
-            });
           }
 
           // Check if this is a reconnecting player
@@ -381,10 +373,11 @@ wss.on('connection', (ws) => {
           }
 
           // New player joining
-          if (room.participants.length >= REQUIRED_PLAYERS) {
+          const maxPlayers = room.requiredPlayers || 10;
+          if (room.participants.length >= maxPlayers) {
             ws.send(JSON.stringify({
               type: 'ERROR',
-              payload: { message: `Room #${code} is full (max ${REQUIRED_PLAYERS} human managers).` }
+              payload: { message: `Room #${code} is full (max ${maxPlayers} human managers).` }
             }));
             return;
           }
@@ -502,6 +495,11 @@ wss.on('connection', (ws) => {
               payload: { message: `Cannot start: Need at least ${room.requiredPlayers} human managers. Currently have ${room.participants.length}.` }
             }));
             return;
+          }
+
+          // If the host has chosen a franchise but didn't explicitly toggle ready, auto-ready the host on start request
+          if (!participant.isReady && participant.teamId) {
+            participant.isReady = true;
           }
 
           // Verify every participant has claimed a team and is ready

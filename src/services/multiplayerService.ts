@@ -248,6 +248,7 @@ class MultiplayerService {
     playerName: string;
     requiredPlayers: number;
     purseCap: number;
+    hostTeamId?: string;
     roomCode?: string;
     teams?: Team[];
     players?: Player[];
@@ -259,7 +260,10 @@ class MultiplayerService {
     const response = this.waitForRoomResponse();
     this.send({
       type: 'CREATE_ROOM',
-      payload: options as any
+      payload: {
+        ...options,
+        playerId: this.myParticipantId,
+      } as any
     });
     return response;
   }
