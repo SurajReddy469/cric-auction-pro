@@ -52,12 +52,40 @@ export const MultiplayerLobby: React.FC = () => {
   const readyCount = participants.filter(p => p.isReady).length;
   const hasEnoughPlayers = participants.length >= requiredPlayers;
   const allReady = hasEnoughPlayers && participants.every(p => p.isReady && p.teamId);
+  const playersNeeded = Math.max(requiredPlayers - participants.length, 0);
+  const playersNotReady = participants.filter(p => !p.isReady || !p.teamId).length;
 
-  const handleCopyCode = () => {
+  const lobbyStatus = playersNeeded > 0
+    ? `Waiting for ${playersNeeded} more player${playersNeeded === 1 ? '' : 's'} to join`
+    : !myParticipant?.teamId
+      ? 'Choose a franchise to continue'
+      : !myParticipant.isReady
+        ? 'Ready up when you are set'
+        : !allReady
+          ? `Waiting for ${playersNotReady} other player${playersNotReady === 1 ? '' : 's'} to get ready`
+          : isHost
+            ? 'Everyone is ready. You can launch the auction.'
+            : 'Everyone is ready. Waiting for the host to launch.';
+  const auctionButtonLabel = allReady
+    ? 'Launch Auction'
+    : playersNeeded > 0
+      ? `Waiting for ${playersNeeded} more player${playersNeeded === 1 ? '' : 's'} to join`
+      : `Waiting for ${playersNotReady} player${playersNotReady === 1 ? '' : 's'} to get ready`;
+
+  const handleCopyCode = async () => {
     soundService.playClick();
-    navigator.clipboard?.writeText(roomCode);
-    setCopiedCode(true);
-    setTimeout(() => setCopiedCode(false), 2000);
+    try {
+      if (!navigator.clipboard?.writeText) {
+        throw new Error('Clipboard access is unavailable.');
+      }
+      await navigator.clipboard.writeText(roomCode);
+      setMultiplayerError(null);
+      setCopiedCode(true);
+      window.setTimeout(() => setCopiedCode(false), 2000);
+    } catch {
+      setCopiedCode(false);
+      setMultiplayerError('Could not copy the room code. Please copy it manually.');
+    }
   };
 
   const handleClaimTeam = (teamId: string) => {
@@ -78,7 +106,7 @@ export const MultiplayerLobby: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-3xl bg-[#0f172a] text-white p-6 sm:p-8 shadow-xl"
+        className="relative overflow-hidden rounded-3xl bg-[#0f172a] text-white p-4 sm:p-5 shadow-xl"
       >
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -95,7 +123,6 @@ export const MultiplayerLobby: React.FC = () => {
             </button>
 
             <div>
-              <p className="mb-1.5 text-xs font-bold text-slate-400">Strictly 0 Bots</p>
               <h1 className="text-2xl font-black text-white sm:text-3xl tracking-tight">
                 {roomName}
               </h1>
@@ -103,46 +130,58 @@ export const MultiplayerLobby: React.FC = () => {
           </div>
 
           {/* Room Code Share Card */}
-          <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl p-2.5 sm:px-4">
+          <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl p-2 sm:px-3">
             <div className="text-right">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Online Room Code</div>
-              <div className="text-xl font-black text-amber-300 tracking-widest">#{roomCode}</div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Room Code</div>
+              <div className="text-xl font-black text-amber-300 tracking-widest">{roomCode}</div>
             </div>
             <button
               onClick={handleCopyCode}
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-400 text-slate-950 font-black hover:bg-amber-300 transition-colors shadow-sm"
-              title="Copy Room Code"
+              aria-label={copiedCode ? 'Room code copied' : 'Copy room code'}
+              className="flex min-h-10 items-center justify-center gap-2 rounded-xl bg-amber-400 px-3 text-slate-950 font-black hover:bg-amber-300 transition-colors shadow-sm"
+              title={copiedCode ? 'Copied!' : 'Copy Room Code'}
             >
-              {copiedCode ? <Check className="h-4 w-4 stroke-[3]" /> : <Copy className="h-4 w-4" />}
+              {copiedCode ? (
+                <>
+                  <Check className="h-4 w-4 stroke-[3]" />
+                  <span className="text-xs">Copied!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="h-4 w-4" />
+                  <span className="text-xs">Copy</span>
+                </>
+              )}
             </button>
           </div>
         </div>
 
         {/* Requirements status bar */}
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4 text-xs font-semibold">
-          <div className="flex items-center gap-4">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3 text-xs font-semibold">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
             <span className="flex items-center gap-1.5 text-slate-300">
               <Users className="h-4 w-4 text-sky-400" />
-              <span>Managers: </span>
-              <strong className="text-white">{participants.length} / {requiredPlayers} required</strong>
+              <span>Players</span>
+              <strong className="text-white">{participants.length} of {requiredPlayers}</strong>
             </span>
             <span className="flex items-center gap-1.5 text-slate-300">
               <Check className="h-4 w-4 text-emerald-400" />
-              <span>Ready: </span>
-              <strong className="text-white">{readyCount} / {participants.length}</strong>
+              <span>Ready</span>
+              <strong className="text-white">{readyCount} of {requiredPlayers}</strong>
             </span>
           </div>
 
-          {isHost ? (
-            <span className="inline-flex items-center gap-1.5 text-amber-300">
-              <Crown className="h-3.5 w-3.5 fill-current" />
-              <span>You are Room Host</span>
+          <div className="flex flex-wrap items-center gap-2 text-slate-300">
+            {isHost && (
+              <span className="inline-flex items-center gap-1.5 text-amber-300">
+                <Crown className="h-3.5 w-3.5 fill-current" />
+                <span>Room host</span>
+              </span>
+            )}
+            <span className="text-slate-300">
+              {lobbyStatus}
             </span>
-          ) : (
-            <span className="text-slate-400">
-              Waiting for host to start once all managers are ready
-            </span>
-          )}
+          </div>
         </div>
       </motion.div>
 
@@ -172,7 +211,7 @@ export const MultiplayerLobby: React.FC = () => {
         <div className="lg:col-span-5 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-black uppercase tracking-wider text-slate-800">
-              Connected Managers ({participants.length})
+              Connected Players ({participants.length})
             </h2>
             <span className="text-xs text-slate-500 font-semibold">Real humans only</span>
           </div>
@@ -252,11 +291,7 @@ export const MultiplayerLobby: React.FC = () => {
                 }`}
               >
                 <Play className="h-4 w-4 fill-current" />
-                <span>
-                  {allReady
-                    ? 'Launch Auction (All Humans Ready!)'
-                    : `Waiting for ${requiredPlayers - readyCount > 0 ? `${requiredPlayers - readyCount} more ready manager(s)` : 'all managers to ready up'}`}
-                </span>
+                <span>{auctionButtonLabel}</span>
               </button>
             )}
           </div>
@@ -266,7 +301,7 @@ export const MultiplayerLobby: React.FC = () => {
         <div className="lg:col-span-7 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-black uppercase tracking-wider text-slate-800">
-              Claim Your Franchise (1 Manager per Team)
+              Claim Your Franchise (1 player per team)
             </h2>
             <span className="text-xs text-slate-500 font-semibold">
               Purse: ₹{multiplayerRoom.purseCap} Cr

@@ -11,7 +11,9 @@ import {
   Home,
   RotateCcw,
   Radio,
-  Trophy
+  Trophy,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
@@ -27,6 +29,7 @@ export const Navbar: React.FC = () => {
     leagueMatches,
     gameMode,
     multiplayerRoom,
+    toggleTheme,
   } = useGameStore();
 
   const team = userTeam();
@@ -149,6 +152,18 @@ export const Navbar: React.FC = () => {
             );
           })}
         </nav>
+
+        <button
+          type="button"
+          onClick={toggleTheme}
+          aria-pressed={settings.theme === 'night'}
+          aria-label={settings.theme === 'day' ? 'Switch to night mode' : 'Switch to day mode'}
+          title={settings.theme === 'day' ? 'Night mode' : 'Day mode'}
+          className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+        >
+          {settings.theme === 'day' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+          <span className="hidden sm:inline">{settings.theme === 'day' ? 'Night' : 'Day'}</span>
+        </button>
 
         {/* Right Stats & Controls */}
         <div className={`${currentScreen === 'start' ? 'hidden' : 'flex'} items-center gap-1.5 sm:gap-2`}>
