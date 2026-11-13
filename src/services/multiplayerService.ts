@@ -42,6 +42,10 @@ class MultiplayerService {
   private resolveServerUrl(): string {
     if (typeof window === 'undefined') return 'ws://localhost:5175';
 
+    // If a custom URL has been saved by user in this browser
+    const savedWs = typeof localStorage !== 'undefined' ? localStorage.getItem('cric_custom_ws_url') : null;
+    if (savedWs) return savedWs;
+
     const configuredWs = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_MULTIPLAYER_WS_URL;
     if (configuredWs) return configuredWs;
 
@@ -57,10 +61,39 @@ class MultiplayerService {
       return `ws://${loc.hostname}:5173/multiplayer`;
     }
 
+    // Vercel serverless CDN cannot run stateful WebSockets; connect to active tunnel
+    if (loc.hostname.includes('vercel.app')) {
+      return 'wss://mild-hereby-followed-leather.trycloudflare.com/multiplayer';
+    }
+
     // Production deployments should expose the multiplayer server on the same
     // host and port as configured by the deployment's reverse proxy.
     const protocol = loc.protocol === 'https:' ? 'wss:' : 'ws:';
     return `${protocol}//${loc.host}/multiplayer`;
+  }
+
+  public getServerUrl(): string {
+    return this.serverUrl;
+  }
+
+  public setServerUrl(url: string) {
+    const trimmed = url.trim();
+    if (!trimmed) {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('cric_custom_ws_url');
+      }
+      this.serverUrl = this.resolveServerUrl();
+    } else {
+      this.serverUrl = trimmed;
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('cric_custom_ws_url', trimmed);
+      }
+    }
+    if (this.socket) {
+      this.socket.close();
+      this.socket = null;
+    }
+    this.setConnectionStatus('disconnected');
   }
 
   private loadOrInitPlayerId(): string {
