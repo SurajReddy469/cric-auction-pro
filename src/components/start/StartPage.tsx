@@ -100,7 +100,7 @@ export const StartPage: React.FC = () => {
     const success = await createMultiplayerRoom({
       roomName: sessionName.trim() || `${selectedTeam.shortName} Live Room`,
       playerName: finalName,
-      requiredPlayers: 2,
+      requiredPlayers: 10,
       purseCap,
     });
     setIsSubmitting(false);

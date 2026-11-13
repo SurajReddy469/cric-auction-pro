@@ -1,0 +1,13 @@
+{
+  "name": "cric-auction-multiplayer-server",
+  "version": "1.0.0",
+  "description": "Cric-Auction Pro Real-time Multiplayer WebSocket Engine",
+  "type": "module",
+  "main": "multiplayerServer.js",
+  "scripts": {
+    "start": "node multiplayerServer.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.2"
+  }
+}

@@ -213,7 +213,6 @@ export const MultiplayerLobby: React.FC = () => {
             <h2 className="text-sm font-black uppercase tracking-wider text-slate-800">
               Connected Players ({participants.length})
             </h2>
-            <span className="text-xs text-slate-500 font-semibold">Real humans only</span>
           </div>
 
           <div className="space-y-2.5">
