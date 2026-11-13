@@ -14,6 +14,7 @@ export type AuctionPhase =
   | 'bidding' 
   | 'going_once' 
   | 'going_twice' 
+  | 'live'
   | 'sold' 
   | 'unsold' 
   | 'round_break' 

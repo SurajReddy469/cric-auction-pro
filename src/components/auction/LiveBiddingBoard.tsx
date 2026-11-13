@@ -17,7 +17,22 @@ const AI_BANTER: Record<string, string[]> = {
 };
 
 export const LiveBiddingBoard: React.FC = () => {
-  const { teams, auction, userTeamId } = useGameStore();
+  const {
+    teams,
+    auction,
+    userTeamId,
+    gameMode,
+    multiplayerRoom,
+    myParticipantId,
+    profile
+  } = useGameStore();
+
+  const myMpParticipant = multiplayerRoom?.participants.find(
+    p => p.id === myParticipantId || (profile?.name && p.name.trim().toLowerCase() === profile.name.trim().toLowerCase())
+  );
+  const activeTeamId = (gameMode === 'multiplayer' && myMpParticipant?.teamId)
+    ? myMpParticipant.teamId
+    : userTeamId;
 
   return (
     <div className="rounded-3xl bg-white border border-slate-200/90 p-4 sm:p-5 shadow-sm flex flex-col h-full">
@@ -36,7 +51,7 @@ export const LiveBiddingBoard: React.FC = () => {
       <div className="flex-1 space-y-2 overflow-y-auto pr-1">
         {teams.map((team) => {
           const isHighestBidder = auction.highestBidderId === team.id;
-          const isUser = team.id === userTeamId;
+          const isUser = team.id === activeTeamId;
           const banterList = AI_BANTER[team.id] || ['Target locked in!'];
           const banter = banterList[auction.bidHistory.length % banterList.length];
 

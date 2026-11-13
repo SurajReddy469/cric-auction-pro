@@ -18,6 +18,8 @@ export const MainAuctionScreen: React.FC = () => {
     tickAuctionTimer,
     setScoutModalOpen,
     settings,
+    multiplayerRoom,
+    gameMode,
   } = useGameStore();
 
   // Timer interval effect
@@ -135,21 +137,25 @@ export const MainAuctionScreen: React.FC = () => {
 
               <div className="h-4 w-px bg-slate-200 hidden md:block" />
 
-              {/* Room Code Badge (Referenced from playauctiongame.com/room/JDLJ77) */}
+              {/* Room Code Badge */}
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-900 text-amber-400 font-mono text-[10px] font-black border border-slate-800 shadow-sm">
-                <span>ROOM:</span>
-                <span className="text-white font-bold tracking-wider">JDLJ77</span>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText('https://cric-auction-pro.vercel.app/?room=JDLJ77');
-                    soundService.playClick();
-                    alert('Room invite link copied: https://cric-auction-pro.vercel.app/?room=JDLJ77');
-                  }}
-                  title="Copy room invite link"
-                  className="ml-1 text-slate-400 hover:text-amber-400 transition-colors"
-                >
-                  📋
-                </button>
+                <span>{gameMode === 'multiplayer' ? 'ROOM:' : 'SESSION:'}</span>
+                <span className="text-white font-bold tracking-wider">{multiplayerRoom?.roomCode || 'SOLO'}</span>
+                {gameMode === 'multiplayer' && multiplayerRoom?.roomCode && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (navigator.clipboard?.writeText) {
+                        navigator.clipboard.writeText(multiplayerRoom.roomCode);
+                        soundService.playClick();
+                      }
+                    }}
+                    title="Copy room code"
+                    className="ml-1 text-slate-400 hover:text-amber-400 transition-colors cursor-pointer"
+                  >
+                    📋
+                  </button>
+                )}
               </div>
             </div>
 

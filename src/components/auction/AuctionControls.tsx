@@ -9,14 +9,30 @@ export const AuctionControls: React.FC = () => {
   const {
     auction,
     userTeamId,
+    gameMode,
+    multiplayerRoom,
+    myParticipantId,
+    profile,
     teams,
     placeHumanBid,
     passCurrentPlayer,
     setScoutModalOpen,
   } = useGameStore();
 
-  const userTeam = teams.find(t => t.id === userTeamId);
-  if (!userTeam || !auction.currentPlayer) return null;
+  // Resolve player's active franchise robustly across Singleplayer and Multiplayer
+  const myMpParticipant = multiplayerRoom?.participants.find(
+    p => p.id === myParticipantId || (profile?.name && p.name.trim().toLowerCase() === profile.name.trim().toLowerCase())
+  );
+
+  const activeTeamId = (gameMode === 'multiplayer' && myMpParticipant?.teamId)
+    ? myMpParticipant.teamId
+    : userTeamId;
+
+  const userTeam = teams.find(t => t.id === activeTeamId)
+    || teams.find(t => t.id === userTeamId)
+    || teams[0];
+
+  if (!auction.currentPlayer) return null;
 
   const currentBid = auction.currentBid;
   const basePrice = auction.currentPlayer.basePrice;
@@ -26,17 +42,38 @@ export const AuctionControls: React.FC = () => {
   // Jump bid (+2 increments)
   const jumpBid = Number((nextMinBid + increment).toFixed(2));
 
-  const isUserHighestBidder = auction.highestBidderId === userTeamId;
-  const canAffordNextBid = userTeam.currentPurse >= nextMinBid;
-  const isBiddingActive = auction.phase === 'bidding' || auction.phase === 'going_once' || auction.phase === 'going_twice';
+  const isUserHighestBidder = Boolean(activeTeamId && auction.highestBidderId === activeTeamId);
+  const canAffordNextBid = userTeam ? userTeam.currentPurse >= nextMinBid : true;
+  const canAffordJumpBid = userTeam ? userTeam.currentPurse >= jumpBid : true;
+
+  const isBiddingActive = 
+    auction.phase === 'bidding' || 
+    auction.phase === 'going_once' || 
+    auction.phase === 'going_twice' ||
+    auction.phase === 'live' ||
+    (auction.phase as string) === 'active' ||
+    (gameMode === 'multiplayer' && auction.timerSeconds > 0 && auction.phase !== 'completed');
 
   const handleBidClick = (amount: number) => {
+    if (isUserHighestBidder) {
+      soundService.playClick();
+      return;
+    }
+    if (!canAffordNextBid) {
+      soundService.playBuzzer();
+      alert(`Insufficient purse! Your franchise has ₹${userTeam.currentPurse.toFixed(2)} Cr remaining.`);
+      return;
+    }
     soundService.playBidSound(true);
     soundService.playGavel();
     placeHumanBid(amount);
   };
 
   const handlePassClick = () => {
+    if (isUserHighestBidder) {
+      soundService.playBuzzer();
+      return;
+    }
     soundService.playClick();
     passCurrentPlayer();
   };
@@ -50,6 +87,9 @@ export const AuctionControls: React.FC = () => {
           <div className="flex items-center gap-2 mb-0.5">
             <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">
               LIVE AUCTION GAVEL
+            </span>
+            <span className="text-[10px] font-mono font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+              Franchise: {userTeam?.shortName || userTeam?.name}
             </span>
           </div>
 
@@ -82,13 +122,16 @@ export const AuctionControls: React.FC = () => {
         
         {/* BIG ARCADE PADDLE: Raise Minimum Bid */}
         <motion.button
+          type="button"
           whileHover={canAffordNextBid && !isUserHighestBidder && isBiddingActive ? { scale: 1.02 } : {}}
           whileTap={canAffordNextBid && !isUserHighestBidder && isBiddingActive ? { scale: 0.96 } : {}}
-          disabled={!isBiddingActive || isUserHighestBidder || !canAffordNextBid}
+          disabled={!isBiddingActive || (!canAffordNextBid && !isUserHighestBidder)}
           onClick={() => handleBidClick(nextMinBid)}
           className={`col-span-12 sm:col-span-6 py-3.5 sm:py-4 px-4 sm:px-6 rounded-2xl font-black text-base sm:text-lg flex items-center justify-center gap-2.5 sm:gap-3 shadow-xl transition-all ${
-            isBiddingActive && !isUserHighestBidder && canAffordNextBid
-              ? 'bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-slate-950 shadow-amber-500/25 ring-2 ring-amber-300'
+            isUserHighestBidder
+              ? 'bg-emerald-600 text-white shadow-emerald-500/25 ring-2 ring-emerald-300 cursor-default'
+              : isBiddingActive && canAffordNextBid
+              ? 'bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-slate-950 shadow-amber-500/25 ring-2 ring-amber-300 cursor-pointer active:scale-98'
               : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
           }`}
         >
@@ -96,19 +139,22 @@ export const AuctionControls: React.FC = () => {
           <span className="truncate">
             {isUserHighestBidder
               ? 'YOU ARE HIGHEST BIDDER ✓'
+              : !canAffordNextBid
+              ? `INSUFFICIENT PURSE • ₹${nextMinBid.toFixed(2)} Cr`
               : `RAISE PADDLE • ₹${nextMinBid.toFixed(2)} Cr`}
           </span>
         </motion.button>
 
         {/* POWER JUMP BID */}
         <motion.button
-          whileHover={canAffordNextBid && !isUserHighestBidder && isBiddingActive ? { scale: 1.02 } : {}}
-          whileTap={canAffordNextBid && !isUserHighestBidder && isBiddingActive ? { scale: 0.96 } : {}}
-          disabled={!isBiddingActive || isUserHighestBidder || userTeam.currentPurse < jumpBid}
+          type="button"
+          whileHover={canAffordJumpBid && !isUserHighestBidder && isBiddingActive ? { scale: 1.02 } : {}}
+          whileTap={canAffordJumpBid && !isUserHighestBidder && isBiddingActive ? { scale: 0.96 } : {}}
+          disabled={!isBiddingActive || isUserHighestBidder || !canAffordJumpBid}
           onClick={() => handleBidClick(jumpBid)}
           className={`col-span-6 sm:col-span-3 py-3 sm:py-4 px-2 sm:px-4 rounded-2xl font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 border transition-all ${
-            isBiddingActive && !isUserHighestBidder && userTeam.currentPurse >= jumpBid
-              ? 'bg-slate-50 hover:bg-slate-100 text-amber-800 border-amber-300 shadow-sm'
+            isBiddingActive && !isUserHighestBidder && canAffordJumpBid
+              ? 'bg-slate-50 hover:bg-slate-100 text-amber-800 border-amber-300 shadow-sm cursor-pointer active:scale-98'
               : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
           }`}
         >
@@ -118,13 +164,14 @@ export const AuctionControls: React.FC = () => {
 
         {/* PASS / PULL OUT */}
         <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.96 }}
+          type="button"
+          whileHover={!isUserHighestBidder ? { scale: 1.02 } : {}}
+          whileTap={!isUserHighestBidder ? { scale: 0.96 } : {}}
           disabled={!isBiddingActive || isUserHighestBidder}
           onClick={handlePassClick}
           className={`col-span-6 sm:col-span-3 py-3 sm:py-4 px-2 sm:px-4 rounded-2xl font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 border transition-all ${
             isBiddingActive && !isUserHighestBidder
-              ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300 shadow-sm'
+              ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300 shadow-sm cursor-pointer active:scale-98'
               : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
           }`}
         >
@@ -137,15 +184,16 @@ export const AuctionControls: React.FC = () => {
       {/* Scout Intel & Quick Stats Pill */}
       <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-500">
         <button
+          type="button"
           onClick={() => { soundService.playClick(); setScoutModalOpen(true); }}
-          className="flex items-center gap-1.5 text-amber-800 hover:text-amber-900 transition-colors"
+          className="flex items-center gap-1.5 text-amber-800 hover:text-amber-900 transition-colors cursor-pointer"
         >
           <Search className="w-3.5 h-3.5 text-amber-600" />
           <span>Scout Dossier & AI Bid Range</span>
         </button>
 
         <span className="font-mono text-emerald-700">
-          Your Available Purse: ₹{userTeam.currentPurse.toFixed(2)} Cr
+          Your Available Purse: ₹{(userTeam?.currentPurse || 0).toFixed(2)} Cr
         </span>
       </div>
 
