@@ -243,7 +243,18 @@ wss.on('connection', (ws) => {
 
       switch (type) {
         case 'CREATE_ROOM': {
-          const roomCode = (payload.roomCode || generateRoomCode()).toUpperCase();
+          let roomCode = (payload.roomCode || generateRoomCode()).toUpperCase().trim();
+          if (!payload.roomCode) {
+            while (rooms.has(roomCode)) roomCode = generateRoomCode();
+          }
+          if (!/^[A-Z0-9]{4,8}$/.test(roomCode)) {
+            ws.send(JSON.stringify({ type: 'ERROR', payload: { message: 'Room code must be 4 to 8 letters or numbers.' } }));
+            return;
+          }
+          if (rooms.has(roomCode)) {
+            ws.send(JSON.stringify({ type: 'ERROR', payload: { message: `Room #${roomCode} already exists. Choose another code.` } }));
+            return;
+          }
           const participantId = `player_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
           
           const hostParticipant = {
@@ -273,6 +284,15 @@ wss.on('connection', (ws) => {
             updatedAt: Date.now()
           };
 
+          if (ws.roomCode) {
+            const previousRoom = rooms.get(ws.roomCode);
+            const previousParticipant = previousRoom?.participants.find(p => p.id === ws.participantId);
+            if (previousParticipant && previousRoom.status === 'lobby') {
+              previousRoom.participants = previousRoom.participants.filter(p => p.id !== ws.participantId);
+              if (previousRoom.participants.length === 0) rooms.delete(previousRoom.roomCode);
+              else broadcastToRoom(previousRoom.roomCode, { type: 'ROOM_UPDATED', payload: { room: previousRoom } });
+            }
+          }
           rooms.set(roomCode, newRoom);
           ws.roomCode = roomCode;
           ws.participantId = participantId;
@@ -305,6 +325,11 @@ wss.on('connection', (ws) => {
 
           if (existingParticipant) {
             // Reconnecting!
+            const previousSocket = Array.from(wss.clients).find(client =>
+              client !== ws && client.readyState === WebSocket.OPEN &&
+              client.roomCode === code && client.participantId === existingParticipant.id
+            );
+            if (previousSocket) previousSocket.close(4001, 'Participant reconnected in another session');
             existingParticipant.isConnected = true;
             existingParticipant.lastHeartbeat = Date.now();
 
@@ -337,10 +362,10 @@ wss.on('connection', (ws) => {
           }
 
           // New player joining
-          if (room.participants.length >= 10) {
+          if (room.participants.length >= Math.min(room.requiredPlayers, 10)) {
             ws.send(JSON.stringify({
               type: 'ERROR',
-              payload: { message: `Room #${code} is full (max 10 human managers).` }
+              payload: { message: `Room #${code} is full (max ${Math.min(room.requiredPlayers, 10)} human managers).` }
             }));
             return;
           }
@@ -389,6 +414,10 @@ wss.on('connection', (ws) => {
           const { teamId } = payload;
           const participant = room.participants.find(p => p.id === ws.participantId);
           if (!participant) return;
+          if (!room.teams.some(team => team.id === teamId)) {
+            ws.send(JSON.stringify({ type: 'ERROR', payload: { message: 'That franchise is not available in this room.' } }));
+            return;
+          }
 
           // Verify no other human has claimed this team
           const alreadyClaimed = room.participants.find(p => p.teamId === teamId && p.id !== ws.participantId);
@@ -533,8 +562,12 @@ wss.on('connection', (ws) => {
           const team = room.teams.find(t => t.id === participant.teamId);
           if (!team) return;
 
-          const amount = payload.amount;
+          const amount = Number(payload?.amount);
           const auction = room.auctionState;
+          if (!Number.isFinite(amount) || !auction.currentPlayer) {
+            ws.send(JSON.stringify({ type: 'ERROR', payload: { message: 'Invalid bid or no player is currently up for auction.' } }));
+            return;
+          }
 
           // Bid validation
           if (amount <= auction.currentBid) {
@@ -672,8 +705,25 @@ setInterval(() => {
     // Check for paused rooms that expired
     if (room.status === 'paused' && room.pauseExpiresAt && now > room.pauseExpiresAt) {
       // Pause window expired
-      room.status = 'lobby';
+      const disconnectedParticipant = room.disconnectedParticipant;
+      if (disconnectedParticipant) {
+        room.participants = room.participants.filter(p => p.id !== disconnectedParticipant.id);
+        if (disconnectedParticipant.isHost) {
+          const nextHost = room.participants.find(p => p.isConnected);
+          if (nextHost) {
+            nextHost.isHost = true;
+            room.hostId = nextHost.id;
+          } else {
+            stopRoomAuctionTimer(roomCode);
+            rooms.delete(roomCode);
+            return;
+          }
+        }
+      }
+      room.status = room.participants.length ? 'lobby' : 'completed';
       room.pauseReason = 'Match abandoned due to player timeout.';
+      room.disconnectedParticipant = undefined;
+      room.pauseExpiresAt = undefined;
       if (room.auctionState) room.auctionState.phase = 'idle';
 
       broadcastToRoom(roomCode, {
