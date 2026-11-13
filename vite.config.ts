@@ -7,6 +7,13 @@ export default defineConfig({
   server: {
     host: true,
     allowedHosts: true,
+    proxy: {
+      '/multiplayer': {
+        target: 'http://localhost:5175',
+        ws: true,
+        rewrite: (path: string) => path.replace(/^\/multiplayer/, ''),
+      },
+    },
   },
   preview: {
     host: true,

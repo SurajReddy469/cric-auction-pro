@@ -23,6 +23,7 @@ class MultiplayerService {
   private heartbeatTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private pingInterval: ReturnType<typeof setInterval> | null = null;
+  private pendingRoomResponse: { resolve: (ok: boolean) => void; timer: ReturnType<typeof setTimeout> } | null = null;
   public pingMs: number = 0;
   public connectionStatus: 'disconnected' | 'connecting' | 'connected' = 'disconnected';
 
@@ -41,6 +42,9 @@ class MultiplayerService {
   private resolveServerUrl(): string {
     if (typeof window === 'undefined') return 'ws://localhost:5175';
 
+    const configuredWs = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_MULTIPLAYER_WS_URL;
+    if (configuredWs) return configuredWs;
+
     // If a custom MULTIPLAYER_WS_URL is provided in env or query param
     const urlParams = new URLSearchParams(window.location.search);
     const customWs = urlParams.get('ws');
@@ -49,7 +53,7 @@ class MultiplayerService {
     const loc = window.location;
     // If running on localhost
     if (loc.hostname === 'localhost' || loc.hostname === '127.0.0.1') {
-      return `ws://${loc.hostname}:5175`;
+      return `ws://${loc.hostname}:5173/multiplayer`;
     }
 
     // Default to the websocket protocol on the same host or port 5175
@@ -84,13 +88,28 @@ class MultiplayerService {
 
       this.setConnectionStatus('connecting');
 
+      let settled = false;
+      const connectTimer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        this.socket?.close();
+        this.setConnectionStatus('disconnected');
+        resolve(false);
+      }, 7000);
+      const finish = (ok: boolean) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(connectTimer);
+        resolve(ok);
+      };
+
       try {
         this.socket = new WebSocket(this.serverUrl);
 
         this.socket.onopen = () => {
           this.setConnectionStatus('connected');
           this.startHeartbeat();
-          resolve(true);
+          finish(true);
         };
 
         this.socket.onmessage = (event) => {
@@ -105,7 +124,7 @@ class MultiplayerService {
         this.socket.onerror = (err) => {
           console.warn('Multiplayer WebSocket error:', err);
           this.setConnectionStatus('disconnected');
-          resolve(false);
+          finish(false);
         };
 
         this.socket.onclose = () => {
@@ -115,7 +134,7 @@ class MultiplayerService {
       } catch (err) {
         console.error('WebSocket connection failed:', err);
         this.setConnectionStatus('disconnected');
-        resolve(false);
+        finish(false);
       }
     });
   }
@@ -146,6 +165,7 @@ class MultiplayerService {
     switch (message.type) {
       case 'ROOM_CREATED':
       case 'ROOM_JOINED':
+        this.resolvePendingRoomResponse(true);
         this.currentRoom = message.payload.room;
         this.myParticipantId = message.payload.myParticipantId;
         this.roomListeners.forEach(l => l(message.payload.room));
@@ -174,6 +194,7 @@ class MultiplayerService {
         break;
 
       case 'ERROR':
+        this.resolvePendingRoomResponse(false);
         this.errorListeners.forEach(l => l(message.payload.message));
         break;
     }
@@ -197,16 +218,24 @@ class MultiplayerService {
     teams?: Team[];
     players?: Player[];
   }): Promise<boolean> {
-    await this.connect();
+    if (!await this.connect()) {
+      this.errorListeners.forEach(l => l(`Could not connect to multiplayer server at ${this.serverUrl}. Start the multiplayer server locally or configure VITE_MULTIPLAYER_WS_URL.`));
+      return false;
+    }
+    const response = this.waitForRoomResponse();
     this.send({
       type: 'CREATE_ROOM',
       payload: options as any
     });
-    return true;
+    return response;
   }
 
   public async joinRoom(roomCode: string, playerName: string): Promise<boolean> {
-    await this.connect();
+    if (!await this.connect()) {
+      this.errorListeners.forEach(l => l(`Could not connect to multiplayer server at ${this.serverUrl}. Start the multiplayer server locally or configure VITE_MULTIPLAYER_WS_URL.`));
+      return false;
+    }
+    const response = this.waitForRoomResponse();
     this.send({
       type: 'JOIN_ROOM',
       payload: {
@@ -215,7 +244,29 @@ class MultiplayerService {
         playerId: this.myParticipantId
       }
     });
-    return true;
+    return response;
+  }
+
+  private waitForRoomResponse(): Promise<boolean> {
+    if (this.pendingRoomResponse) {
+      clearTimeout(this.pendingRoomResponse.timer);
+      this.pendingRoomResponse.resolve(false);
+    }
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.pendingRoomResponse = null;
+        this.errorListeners.forEach(l => l('Multiplayer server did not respond. Please try again.'));
+        resolve(false);
+      }, 7000);
+      this.pendingRoomResponse = { resolve, timer };
+    });
+  }
+
+  private resolvePendingRoomResponse(ok: boolean) {
+    if (!this.pendingRoomResponse) return;
+    clearTimeout(this.pendingRoomResponse.timer);
+    this.pendingRoomResponse.resolve(ok);
+    this.pendingRoomResponse = null;
   }
 
   public claimTeam(teamId: string) {
