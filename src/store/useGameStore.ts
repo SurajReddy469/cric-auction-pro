@@ -53,6 +53,7 @@ export interface GameStoreState {
     playerName: string;
     requiredPlayers: number;
     purseCap: number;
+    hostTeamId?: string;
     roomCode?: string;
   }) => Promise<boolean>;
   joinMultiplayerRoom: (roomCode: string, playerName: string) => Promise<boolean>;
@@ -235,6 +236,28 @@ const defaultInitialSession: IPLSession = {
 const initialSessionsList: IPLSession[] = savedSessions.length > 0 ? savedSessions : [defaultInitialSession];
 const activeSessionCandidate = initialSessionsList.find(s => s.id === savedActiveSessionId) || initialSessionsList[0];
 
+const initialScreen: GameScreen = (() => {
+  if (typeof window === 'undefined') return 'start';
+  const activeMp = StorageService.loadActiveMultiplayerSession();
+  if (activeMp?.roomCode) {
+    return 'multiplayer_lobby';
+  }
+  const savedScreen = StorageService.loadLastScreen();
+  if (savedScreen && ['start', 'menu', 'teams', 'auction', 'squad', 'season', 'admin', 'multiplayer_lobby'].includes(savedScreen)) {
+    return savedScreen as GameScreen;
+  }
+  if (savedCampaign?.currentScreen && ['start', 'menu', 'teams', 'auction', 'squad', 'season', 'admin', 'multiplayer_lobby'].includes(savedCampaign.currentScreen)) {
+    return savedCampaign.currentScreen as GameScreen;
+  }
+  if (savedCampaign?.auction && savedCampaign.auction.phase !== 'idle' && savedCampaign.auction.phase !== 'completed') {
+    return 'auction';
+  }
+  if (savedCampaign?.leagueMatches && savedCampaign.leagueMatches.length > 0) {
+    return 'season';
+  }
+  return 'start';
+})();
+
 export const useGameStore = create<GameStoreState>((set, get) => {
   // Helper to persist campaign state to localStorage (Fixes Issue 11)
   const saveCampaignState = (override: Partial<GameStoreState> = {}) => {
@@ -279,9 +302,10 @@ export const useGameStore = create<GameStoreState>((set, get) => {
   };
 
   return {
-    currentScreen: 'start',
+    currentScreen: initialScreen,
     setScreen: (screen) => {
       set({ currentScreen: screen });
+      StorageService.saveLastScreen(screen);
       saveCampaignState({ currentScreen: screen });
     },
 
@@ -316,6 +340,16 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       });
 
       if (success) {
+        const currentRoom = multiplayerService.getCurrentRoom();
+        const code = currentRoom?.roomCode || options.roomCode || '';
+        if (code) {
+          StorageService.saveActiveMultiplayerSession({
+            roomCode: code,
+            playerName: options.playerName,
+            timestamp: Date.now(),
+          });
+        }
+        StorageService.saveLastScreen('multiplayer_lobby');
         set({
           gameMode: 'multiplayer',
           currentScreen: 'multiplayer_lobby',
@@ -328,6 +362,12 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     joinMultiplayerRoom: async (roomCode, playerName) => {
       const success = await multiplayerService.joinRoom(roomCode, playerName);
       if (success) {
+        StorageService.saveActiveMultiplayerSession({
+          roomCode,
+          playerName,
+          timestamp: Date.now(),
+        });
+        StorageService.saveLastScreen('multiplayer_lobby');
         set({
           gameMode: 'multiplayer',
           currentScreen: 'multiplayer_lobby',
@@ -351,10 +391,12 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
     leaveMultiplayerRoom: () => {
       multiplayerService.disconnect();
+      StorageService.clearActiveMultiplayerSession();
+      StorageService.saveLastScreen('start');
       set({
         gameMode: 'singleplayer',
         multiplayerRoom: null,
-        currentScreen: 'menu',
+        currentScreen: 'start',
         isRoomPaused: false,
         roomPauseReason: null,
       });
@@ -2203,8 +2245,10 @@ if (typeof window !== 'undefined') {
   });
 
   multiplayerService.onAuctionSync(({ auctionState, teams, players }) => {
+    StorageService.saveLastScreen('auction');
     useGameStore.setState({
       auction: auctionState,
+      currentScreen: 'auction',
       ...(teams && teams.length > 0 ? { teams } : {}),
       ...(players && players.length > 0 ? { players } : {}),
       isRoomPaused: false,

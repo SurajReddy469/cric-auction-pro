@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useGameStore } from './store/useGameStore';
+import { StorageService } from './services/storageService';
 import { Navbar } from './components/common/Navbar';
 import { StartPage } from './components/start/StartPage';
 import { MainMenu } from './components/menu/MainMenu';
@@ -15,7 +16,16 @@ import { MultiplayerModal } from './components/multiplayer/MultiplayerModal';
 import { DisconnectPauseOverlay } from './components/multiplayer/DisconnectPauseOverlay';
 
 export const App: React.FC = () => {
-  const { currentScreen } = useGameStore();
+  const { currentScreen, joinMultiplayerRoom, multiplayerRoom } = useGameStore();
+
+  // Seamless Page Reload/F5 Session Restoration
+  useEffect(() => {
+    const activeMp = StorageService.loadActiveMultiplayerSession();
+    if (activeMp && activeMp.roomCode && activeMp.playerName && !multiplayerRoom) {
+      // Reconnect to active multiplayer room
+      joinMultiplayerRoom(activeMp.roomCode, activeMp.playerName);
+    }
+  }, []);
 
   const renderScreen = () => {
     switch (currentScreen) {

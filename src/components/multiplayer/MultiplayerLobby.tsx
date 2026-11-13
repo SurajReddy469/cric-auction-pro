@@ -12,7 +12,8 @@ import {
   Play,
   CircleDollarSign,
   Crown,
-  AlertCircle
+  AlertCircle,
+  Clock
 } from 'lucide-react';
 
 export const MultiplayerLobby: React.FC = () => {
@@ -95,7 +96,36 @@ export const MultiplayerLobby: React.FC = () => {
   };
 
   const handleStartAuction = () => {
-    if (!allReady) return;
+    const missingTeam = participants.filter(p => !p.teamId);
+    const unreadyWithTeam = participants.filter(p => p.teamId && !p.isReady);
+
+    if (playersNeeded > 0) {
+      soundService.playBuzzer();
+      setMultiplayerError(`Waiting for ${playersNeeded} more player${playersNeeded > 1 ? 's' : ''} to reach ${requiredPlayers} managers.`);
+      return;
+    }
+
+    if (missingTeam.length > 0) {
+      soundService.playBuzzer();
+      setMultiplayerError(`Cannot start yet: ${missingTeam.map(p => p.name).join(', ')} must choose a franchise first!`);
+      return;
+    }
+
+    // If all participants have franchises and only the host is unready, auto-ready the host and launch!
+    if (unreadyWithTeam.length === 1 && unreadyWithTeam[0].id === myParticipantId) {
+      soundService.playClick();
+      toggleMultiplayerReady();
+      soundService.playGavel();
+      startMultiplayerAuction();
+      return;
+    }
+
+    if (unreadyWithTeam.length > 0) {
+      soundService.playBuzzer();
+      setMultiplayerError(`Cannot start yet: ${unreadyWithTeam.map(p => p.name).join(', ')} must click 'Ready Up'!`);
+      return;
+    }
+
     soundService.playGavel();
     startMultiplayerAuction();
   };
@@ -223,26 +253,51 @@ export const MultiplayerLobby: React.FC = () => {
               return (
                 <div
                   key={p.id}
-                  className={`p-4 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                  className={`p-3.5 sm:p-4 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
                     isMe
-                      ? 'border-amber-400 bg-amber-50/70 shadow-sm ring-1 ring-amber-400/30'
-                      : 'border-slate-200 bg-white'
+                      ? 'border-amber-400 bg-amber-50/80 shadow-sm ring-2 ring-amber-400/30'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white font-black text-xs">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white font-black text-xs shadow-inner">
                       {claimedTeam ? <TeamBadge teamId={claimedTeam.id} size="sm" /> : p.name.substring(0, 2).toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="font-black text-sm text-slate-900 truncate">
                           {p.name} {isMe && '(You)'}
                         </span>
+                        {p.isHost && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800 border border-amber-300/80 shadow-xs">
+                            <Crown className="h-3 w-3 fill-amber-500 text-amber-600" />
+                            Host
+                          </span>
+                        )}
                       </div>
-                      <div className="text-xs font-semibold text-slate-500 truncate">
+                      <div className="text-xs font-semibold text-slate-500 truncate mt-0.5">
                         {claimedTeam ? claimedTeam.name : 'Choosing franchise...'}
                       </div>
                     </div>
+                  </div>
+
+                  {/* Player Ready Status Symbol & Indicator (Requirement 1) */}
+                  <div className="shrink-0 flex items-center">
+                    {p.isReady ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800 border border-emerald-300 shadow-sm">
+                        <Check className="h-3.5 w-3.5 stroke-[3] text-emerald-600" />
+                        <span>Ready</span>
+                      </span>
+                    ) : p.teamId ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800 border border-amber-200">
+                        <Clock className="h-3.5 w-3.5 text-amber-600 animate-spin" style={{ animationDuration: '4s' }} />
+                        <span>Not Ready</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-500 border border-slate-200">
+                        <span>Selecting Team</span>
+                      </span>
+                    )}
                   </div>
 
                 </div>
@@ -252,6 +307,13 @@ export const MultiplayerLobby: React.FC = () => {
 
           {/* User Ready & Start Controls */}
           <div className="pt-2 space-y-3">
+            {isHost && !myParticipant?.teamId && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 text-xs font-bold flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                <span>Host Action: Claim your franchise in the right column first.</span>
+              </div>
+            )}
+
             <button
               onClick={() => {
                 soundService.playClick();
@@ -281,16 +343,16 @@ export const MultiplayerLobby: React.FC = () => {
 
             {isHost && (
               <button
+                type="button"
                 onClick={handleStartAuction}
-                disabled={!allReady}
-                className={`w-full py-3.5 rounded-2xl font-black text-sm tracking-wide transition-all flex items-center justify-center gap-2 ${
+                className={`w-full py-3.5 rounded-2xl font-black text-sm tracking-wide transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg ${
                   allReady
-                    ? 'bg-slate-900 hover:bg-slate-800 text-amber-300 shadow-xl shadow-slate-950/20 hover:-translate-y-0.5 cursor-pointer'
-                    : 'bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed'
+                    ? 'bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-slate-950 shadow-amber-400/30 animate-pulse hover:scale-[1.01]'
+                    : 'bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-400/30'
                 }`}
               >
                 <Play className="h-4 w-4 fill-current" />
-                <span>{auctionButtonLabel}</span>
+                <span>{allReady ? '⚡ Launch Auction Now!' : auctionButtonLabel}</span>
               </button>
             )}
           </div>

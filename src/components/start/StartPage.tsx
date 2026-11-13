@@ -15,7 +15,9 @@ import {
   Flame, 
   Zap,
   Sparkles,
-  X
+  X,
+  Users,
+  AlertCircle
 } from 'lucide-react';
 import { SessionFormat } from '../../types/session';
 
@@ -45,22 +47,27 @@ export const StartPage: React.FC = () => {
       ? profile.name
       : ''
   );
+  const [nameError, setNameError] = useState<string | null>(null);
   const [selectedTeamId, setSelectedTeamId] = useState(userTeamId || 'chennai-super-kings');
   const [tab, setTab] = useState<'create' | 'login'>('create');
   const [sessionName, setSessionName] = useState('IPL 2025 Mega Auction');
   const [mode, setMode] = useState<SessionMode>('singleplayer');
   const [format, setFormat] = useState<SessionFormat>('mega');
+  const [requiredPlayers, setRequiredPlayers] = useState<number>(10);
   const [roomCode, setRoomCode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const selectedTeam = teams.find(t => t.id === selectedTeamId) || teams[0];
   const isExistingCampaignActive = (auction.phase !== 'idle' && auction.phase !== 'completed') || leagueMatches.length > 0;
   const purseCap = format === 'mini' ? 60 : format === 'turbo' ? 90 : 120;
-  const effectiveName = name.trim() || 'Vikram Sengupta';
+  const isNameValid = name.trim().length >= 2;
+  const effectiveName = name.trim() || 'Enter Manager Name';
 
   const saveProfileData = () => {
-    const finalName = name.trim() || 'Vikram Sengupta';
-    setManagerProfile(finalName);
+    const finalName = name.trim();
+    if (finalName) {
+      setManagerProfile(finalName);
+    }
     selectTeam(selectedTeamId);
   };
 
@@ -77,8 +84,13 @@ export const StartPage: React.FC = () => {
 
   const handleCreate = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!isNameValid) {
+      soundService.playBuzzer();
+      setNameError('Manager Identity Name is mandatory (minimum 2 characters).');
+      return;
+    }
     soundService.playClick();
-    const finalName = name.trim() || 'Vikram Sengupta';
+    const finalName = name.trim();
     saveProfileData();
     setMultiplayerError(null);
 
@@ -100,14 +112,20 @@ export const StartPage: React.FC = () => {
     const success = await createMultiplayerRoom({
       roomName: sessionName.trim() || `${selectedTeam.shortName} Live Room`,
       playerName: finalName,
-      requiredPlayers: 10,
+      requiredPlayers,
       purseCap,
+      hostTeamId: selectedTeamId,
     });
     setIsSubmitting(false);
     if (!success) soundService.playBuzzer();
   };
 
   const handleOpenDashboard = () => {
+    if (!isNameValid) {
+      soundService.playBuzzer();
+      setNameError('Manager Identity Name is mandatory to open the dashboard.');
+      return;
+    }
     soundService.playClick();
     saveProfileData();
     if (mode === 'singleplayer') {
@@ -124,12 +142,17 @@ export const StartPage: React.FC = () => {
 
   const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!isNameValid) {
+      soundService.playBuzzer();
+      setNameError('Manager Identity Name is mandatory to join a room.');
+      return;
+    }
     if (!roomCode.trim()) return;
     soundService.playClick();
     saveProfileData();
     setMultiplayerError(null);
     setIsSubmitting(true);
-    const finalName = name.trim() || 'Vikram Sengupta';
+    const finalName = name.trim();
     const success = await joinMultiplayerRoom(roomCode.trim().toUpperCase(), finalName);
     setIsSubmitting(false);
     if (!success) soundService.playBuzzer();
@@ -219,43 +242,78 @@ export const StartPage: React.FC = () => {
             </motion.div>
           )}
 
-          {/* Manager Identity Card with Light Default Placeholder */}
-          <div className="rounded-2xl border border-white/10 bg-slate-950/75 p-3.5 sm:p-5 space-y-3.5 shadow-inner">
-            <div className="flex items-center justify-between">
-              <label htmlFor="manager-name" className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-300">
-                <IdCard className="h-4 w-4 text-amber-400" />
-                <span>Manager Identity Name</span>
-              </label>
-              <span className="text-[10px] font-mono font-bold text-slate-400">
-                {name.length > 0 ? `${name.length}/32 chars` : 'Default: Vikram Sengupta'}
-              </span>
-            </div>
-
-            <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
-                <span className="text-base sm:text-lg">🏏</span>
+          {/* Manager Identity Card with Animated Neon Aura Effect & Mandatory Validation (Strictly 0 <section> tags) */}
+          <div className="relative rounded-2xl p-[2px] transition-all duration-500 bg-gradient-to-r from-amber-500/40 via-yellow-400/50 to-amber-600/40 hover:from-amber-400/60 hover:via-yellow-300/70 hover:to-amber-500/60 focus-within:from-amber-400 focus-within:via-yellow-300 focus-within:to-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.15)] focus-within:shadow-[0_0_35px_rgba(245,158,11,0.35)]">
+            <div className="rounded-[14px] bg-slate-950/90 p-3.5 sm:p-5 space-y-3 shadow-inner backdrop-blur-xl">
+              <div className="flex items-center justify-between">
+                <label htmlFor="manager-name" className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-200">
+                  <IdCard className="h-4 w-4 text-amber-400" />
+                  <span>Manager Identity Name</span>
+                  <span className="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                    Mandatory
+                  </span>
+                </label>
+                <div className="flex items-center gap-2">
+                  {name.trim().length >= 2 ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400">
+                      <Check className="h-3 w-3 stroke-[3]" />
+                      <span>Ready</span>
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-mono font-bold text-amber-400/90">
+                      Min 2 chars
+                    </span>
+                  )}
+                  <span className="text-[10px] font-mono font-bold text-slate-400">
+                    {name.length}/32
+                  </span>
+                </div>
               </div>
-              <input
-                id="manager-name"
-                type="text"
-                value={name}
-                maxLength={32}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Vikram Sengupta"
-                className="w-full rounded-xl border-2 border-white/15 bg-slate-900/90 pl-11 pr-10 py-2.5 sm:py-3 text-base sm:text-lg font-extrabold text-white placeholder:text-slate-400/80 placeholder:font-medium outline-none transition focus:border-amber-400 focus:ring-4 focus:ring-amber-400/20 shadow-inner"
-              />
-              {name.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setName('')}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-white transition"
-                  title="Reset to default Vikram Sengupta"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+
+              <div className="relative group">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-amber-400 transition-transform group-focus-within:scale-110">
+                  <span className="text-base sm:text-lg">🏏</span>
+                </div>
+                <input
+                  id="manager-name"
+                  type="text"
+                  value={name}
+                  maxLength={32}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (nameError) setNameError(null);
+                  }}
+                  placeholder="Enter your name (e.g. Vikram Sengupta)"
+                  className={`w-full rounded-xl border-2 bg-slate-900/90 pl-11 pr-10 py-2.5 sm:py-3 text-base sm:text-lg font-extrabold text-white placeholder:text-slate-500 placeholder:font-medium outline-none transition duration-300 shadow-inner ${
+                    nameError
+                      ? 'border-rose-500 focus:ring-4 focus:ring-rose-500/30'
+                      : isNameValid
+                      ? 'border-emerald-500/60 focus:border-amber-400 focus:ring-4 focus:ring-amber-400/25'
+                      : 'border-white/15 focus:border-amber-400 focus:ring-4 focus:ring-amber-400/20'
+                  }`}
+                />
+                {name.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setName('');
+                      if (nameError) setNameError(null);
+                    }}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-white transition"
+                    title="Clear name"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+
+              {nameError && (
+                <div className="flex items-center gap-1.5 text-xs font-bold text-rose-400 pt-0.5 animate-pulse">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  <span>{nameError}</span>
+                </div>
               )}
             </div>
-
           </div>
 
           {/* 10 Real IPL Franchises Selection Grid */}
@@ -501,26 +559,77 @@ export const StartPage: React.FC = () => {
                   </div>
                 </div>
 
+                {/* League Size (Auction Member Count) - Requirement 6 */}
+                {mode === 'multiplayer' && (
+                  <div className="space-y-2 p-3 sm:p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-950/20 backdrop-blur-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-emerald-300">
+                        <Users className="h-3.5 w-3.5" />
+                        <span>Auction Member Capacity</span>
+                      </div>
+                      <span className="text-xs font-mono font-black text-emerald-400">
+                        {requiredPlayers} Managers
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+                      {[2, 4, 6, 8, 10].map((count) => {
+                        const isSelected = requiredPlayers === count;
+                        return (
+                          <button
+                            key={count}
+                            type="button"
+                            onClick={() => {
+                              soundService.playClick();
+                              setRequiredPlayers(count);
+                            }}
+                            className={`py-2 px-1 rounded-xl text-center font-black transition-all active:scale-95 ${
+                              isSelected
+                                ? 'bg-emerald-400 text-slate-950 ring-2 ring-emerald-300 shadow-lg font-black scale-[1.02]'
+                                : 'bg-slate-900/90 border border-white/10 text-slate-400 hover:text-white hover:border-emerald-400/50'
+                            }`}
+                          >
+                            <div className="text-xs sm:text-sm font-black">{count}</div>
+                            <div className="text-[9px] opacity-80 uppercase tracking-tighter">
+                              {count === 2 ? '1v1' : count === 10 ? 'Full' : 'Teams'}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="text-[10px] text-slate-400 font-medium leading-relaxed">
+                      {requiredPlayers === 10 
+                        ? 'Full 10-franchise IPL tournament. All 10 teams managed by humans.'
+                        : `Custom ${requiredPlayers}-player room. Auction starts once all ${requiredPlayers} managers ready up.`}
+                    </div>
+                  </div>
+                )}
+
                 {/* Primary & Secondary Action Launch Buttons */}
                 <div className="space-y-2 pt-1">
                   <motion.button 
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.98 }}
+                    whileHover={isNameValid ? { scale: 1.01 } : {}}
+                    whileTap={isNameValid ? { scale: 0.98 } : {}}
                     type="submit" 
                     disabled={isSubmitting} 
-                    className={`flex w-full items-center justify-center gap-2 rounded-xl py-3.5 px-4 font-black text-sm sm:text-base shadow-xl transition-all disabled:opacity-60 ${
-                      mode === 'multiplayer'
-                        ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-emerald-500/25'
-                        : 'bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 shadow-amber-500/25'
+                    className={`flex w-full items-center justify-center gap-2 rounded-xl py-3.5 px-4 font-black text-sm sm:text-base shadow-xl transition-all ${
+                      !isNameValid
+                        ? 'bg-slate-800 text-slate-400 border border-white/10 cursor-pointer hover:border-rose-400/40'
+                        : mode === 'multiplayer'
+                        ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-emerald-500/25 cursor-pointer'
+                        : 'bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 shadow-amber-500/25 cursor-pointer'
                     }`}
                   >
                     <Zap className="h-4 w-4 fill-current" />
                     <span>
                       {isSubmitting 
                         ? 'Launching Arena...' 
-                        : mode === 'multiplayer' 
-                          ? `Host Online Room as ${selectedTeam.shortName} (₹${purseCap} Cr)` 
-                          : `Enter Live Auction as ${selectedTeam.shortName} (Lot #1 Kickoff)`}
+                        : !isNameValid
+                          ? 'Enter Manager Name to Enter Arena'
+                          : mode === 'multiplayer' 
+                            ? `Host Online Room as ${selectedTeam.shortName} (${requiredPlayers} Managers)` 
+                            : `Enter Live Auction as ${selectedTeam.shortName} (Lot #1 Kickoff)`}
                     </span>
                     <ArrowRight className="h-4 w-4 stroke-[3]" />
                   </motion.button>
@@ -552,14 +661,26 @@ export const StartPage: React.FC = () => {
                 </div>
 
                 <motion.button 
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={isNameValid && Boolean(roomCode.trim()) ? { scale: 1.01 } : {}}
+                  whileTap={isNameValid && Boolean(roomCode.trim()) ? { scale: 0.98 } : {}}
                   type="submit" 
-                  disabled={isSubmitting || !roomCode.trim()} 
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 py-3.5 px-4 font-black text-sm text-slate-950 shadow-xl shadow-emerald-500/20 transition-all disabled:opacity-50"
+                  disabled={isSubmitting} 
+                  className={`flex w-full items-center justify-center gap-2 rounded-xl py-3.5 px-4 font-black text-sm shadow-xl transition-all ${
+                    !isNameValid || !roomCode.trim()
+                      ? 'bg-slate-800 text-slate-400 border border-white/10 cursor-pointer hover:border-rose-400/40'
+                      : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-emerald-500/20 cursor-pointer'
+                  }`}
                 >
                   <Radio className="h-4 w-4 animate-pulse" />
-                  <span>{isSubmitting ? 'Connecting...' : 'Join Human-Only Room'}</span>
+                  <span>
+                    {isSubmitting 
+                      ? 'Connecting...' 
+                      : !isNameValid 
+                        ? 'Enter Manager Name to Join' 
+                        : !roomCode.trim() 
+                          ? 'Enter 6-Digit Room Code' 
+                          : 'Join Human-Only Room'}
+                  </span>
                   <ArrowRight className="h-4 w-4 stroke-[3]" />
                 </motion.button>
               </form>
