@@ -332,7 +332,11 @@ wss.on('connection', (ws) => {
             ? room.participants.find(p => p.id === payload.playerId)
             : null;
 
-          let participantId = existingParticipant ? existingParticipant.id : `player_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+          let participantId = existingParticipant 
+            ? existingParticipant.id 
+            : (payload.playerId && !room.participants.some(p => p.id === payload.playerId)
+                ? payload.playerId
+                : `player_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`);
 
           if (existingParticipant) {
             // Reconnecting!
@@ -390,10 +394,16 @@ wss.on('connection', (ws) => {
             return;
           }
 
+          // If a preferred teamId was provided and is not already claimed, assign it
+          let initialTeamId = null;
+          if (payload.teamId && !room.participants.some(p => p.teamId === payload.teamId)) {
+            initialTeamId = payload.teamId;
+          }
+
           const newParticipant = {
             id: participantId,
             name: payload.playerName || `Manager ${room.participants.length + 1}`,
-            teamId: null,
+            teamId: initialTeamId,
             isHost: false,
             isReady: false,
             isConnected: true,
@@ -457,12 +467,21 @@ wss.on('connection', (ws) => {
           if (!room || room.status !== 'lobby') return;
 
           const participant = room.participants.find(p => p.id === ws.participantId);
-          if (!participant || !participant.teamId) {
-            ws.send(JSON.stringify({
-              type: 'ERROR',
-              payload: { message: 'You must select a franchise before getting ready.' }
-            }));
-            return;
+          if (!participant) return;
+
+          // If participant has no team yet, auto-assign an available team so they can ready up!
+          if (!participant.teamId) {
+            const claimedTeamIds = new Set(room.participants.map(p => p.teamId).filter(Boolean));
+            const availableTeam = room.teams.find(team => !claimedTeamIds.has(team.id));
+            if (availableTeam) {
+              participant.teamId = availableTeam.id;
+            } else {
+              ws.send(JSON.stringify({
+                type: 'ERROR',
+                payload: { message: 'All franchises are claimed. Cannot ready up.' }
+              }));
+              return;
+            }
           }
 
           participant.isReady = typeof payload?.isReady === 'boolean' ? payload.isReady : !participant.isReady;

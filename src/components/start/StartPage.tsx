@@ -156,7 +156,7 @@ export const StartPage: React.FC = () => {
     setMultiplayerError(null);
     setIsSubmitting(true);
     const finalName = name.trim();
-    const success = await joinMultiplayerRoom(roomCode.trim().toUpperCase(), finalName);
+    const success = await joinMultiplayerRoom(roomCode.trim().toUpperCase(), finalName, selectedTeamId);
     setIsSubmitting(false);
     if (!success) soundService.playBuzzer();
   };

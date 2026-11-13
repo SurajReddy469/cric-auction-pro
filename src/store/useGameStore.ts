@@ -57,7 +57,7 @@ export interface GameStoreState {
     hostTeamId?: string;
     roomCode?: string;
   }) => Promise<boolean>;
-  joinMultiplayerRoom: (roomCode: string, playerName: string) => Promise<boolean>;
+  joinMultiplayerRoom: (roomCode: string, playerName: string, teamId?: string) => Promise<boolean>;
   claimMultiplayerTeam: (teamId: string) => void;
   toggleMultiplayerReady: () => void;
   startMultiplayerAuction: () => void;
@@ -359,13 +359,15 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           gameMode: 'multiplayer',
           currentScreen: 'multiplayer_lobby',
           isMultiplayerModalOpen: false,
+          myParticipantId: multiplayerService.getMyParticipantId(),
         });
       }
       return success;
     },
 
-    joinMultiplayerRoom: async (roomCode, playerName) => {
-      const success = await multiplayerService.joinRoom(roomCode, playerName);
+    joinMultiplayerRoom: async (roomCode, playerName, teamId) => {
+      const chosenTeamId = teamId || get().userTeamId;
+      const success = await multiplayerService.joinRoom(roomCode, playerName, chosenTeamId);
       if (success) {
         StorageService.saveActiveMultiplayerSession({
           roomCode,
@@ -377,6 +379,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           gameMode: 'multiplayer',
           currentScreen: 'multiplayer_lobby',
           isMultiplayerModalOpen: false,
+          myParticipantId: multiplayerService.getMyParticipantId(),
         });
       }
       return success;
@@ -2240,8 +2243,10 @@ if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
 if (typeof window !== 'undefined') {
   multiplayerService.onRoomUpdate((room) => {
     const store = useGameStore.getState();
+    const myPid = multiplayerService.getMyParticipantId();
     useGameStore.setState({
       multiplayerRoom: room,
+      myParticipantId: myPid || store.myParticipantId,
       isRoomPaused: room.status === 'paused',
       roomPauseReason: room.pauseReason || null,
       pauseExpiresAt: room.pauseExpiresAt || null,

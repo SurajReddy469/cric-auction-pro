@@ -36,7 +36,7 @@ export interface MultiplayerRoomState {
 
 export type MultiplayerClientEvent =
   | { type: 'CREATE_ROOM'; payload: { roomName: string; playerName: string; requiredPlayers: number; purseCap: number; roomCode?: string } }
-  | { type: 'JOIN_ROOM'; payload: { roomCode: string; playerName: string; playerId?: string } }
+  | { type: 'JOIN_ROOM'; payload: { roomCode: string; playerName: string; playerId?: string; teamId?: string } }
   | { type: 'CLAIM_TEAM'; payload: { teamId: string } }
   | { type: 'TOGGLE_READY'; payload: { isReady?: boolean } }
   | { type: 'START_AUCTION'; payload?: Record<string, never> }
