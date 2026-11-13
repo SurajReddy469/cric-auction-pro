@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: cric-auction-multiplayer
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server/multiplayerServer.js
+    healthCheckPath: /health
+    autoDeploy: true

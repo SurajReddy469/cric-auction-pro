@@ -2,6 +2,7 @@ import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 
 const PORT = process.env.PORT || 5175;
+const REQUIRED_PLAYERS = 10;
 
 // In-memory Room Store
 const rooms = new Map();
@@ -240,6 +241,15 @@ wss.on('connection', (ws) => {
     try {
       const message = JSON.parse(messageBuffer.toString());
       const { type, payload } = message;
+      const connectedRoom = rooms.get(ws.roomCode);
+      if (connectedRoom && connectedRoom.requiredPlayers !== REQUIRED_PLAYERS) {
+        connectedRoom.requiredPlayers = REQUIRED_PLAYERS;
+        connectedRoom.updatedAt = Date.now();
+        broadcastToRoom(connectedRoom.roomCode, {
+          type: 'ROOM_UPDATED',
+          payload: { room: connectedRoom }
+        });
+      }
 
       switch (type) {
         case 'CREATE_ROOM': {
@@ -275,7 +285,7 @@ wss.on('connection', (ws) => {
             status: 'lobby',
             isHumanOnly: true,
             hasBots: false,
-            requiredPlayers: Math.max(2, Math.min(10, payload.requiredPlayers || 2)),
+            requiredPlayers: REQUIRED_PLAYERS,
             purseCap: payload.purseCap || 120,
             participants: [hostParticipant],
             teams: (payload.teams && payload.teams.length > 0) ? payload.teams : JSON.parse(JSON.stringify(DEFAULT_TEAMS)),
@@ -314,6 +324,15 @@ wss.on('connection', (ws) => {
               payload: { message: `Room #${code} not found. Check the code and try again.` }
             }));
             return;
+          }
+
+          if (room.requiredPlayers !== REQUIRED_PLAYERS) {
+            room.requiredPlayers = REQUIRED_PLAYERS;
+            room.updatedAt = Date.now();
+            broadcastToRoom(code, {
+              type: 'ROOM_UPDATED',
+              payload: { room }
+            });
           }
 
           // Check if this is a reconnecting player
@@ -362,10 +381,10 @@ wss.on('connection', (ws) => {
           }
 
           // New player joining
-          if (room.participants.length >= Math.min(room.requiredPlayers, 10)) {
+          if (room.participants.length >= REQUIRED_PLAYERS) {
             ws.send(JSON.stringify({
               type: 'ERROR',
-              payload: { message: `Room #${code} is full (max ${Math.min(room.requiredPlayers, 10)} human managers).` }
+              payload: { message: `Room #${code} is full (max ${REQUIRED_PLAYERS} human managers).` }
             }));
             return;
           }

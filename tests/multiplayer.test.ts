@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { WebSocket } from 'ws';
 import { useGameStore } from '../src/store/useGameStore';
 
-const SERVER_URL = 'ws://localhost:5175';
+const SERVER_URL = `ws://localhost:${process.env.TEST_MULTIPLAYER_PORT || 5175}`;
 
 // Helper to create a connected WebSocket client with message promise resolver
 function createClient(name: string): Promise<{
@@ -65,16 +65,21 @@ describe('Multiplayer Human-Only System', () => {
   const roomCode = 'TEST' + Math.floor(1000 + Math.random() * 9000);
   let hostClient: Awaited<ReturnType<typeof createClient>>;
   let guestClient: Awaited<ReturnType<typeof createClient>>;
+  let additionalClients: Awaited<ReturnType<typeof createClient>>[] = [];
   let guestParticipantId: string;
 
   beforeAll(async () => {
     hostClient = await createClient('Host');
     guestClient = await createClient('Guest');
+    additionalClients = await Promise.all(
+      Array.from({ length: 8 }, (_, index) => createClient(`Guest ${index + 2}`))
+    );
   });
 
   afterAll(() => {
     hostClient?.close();
     guestClient?.close();
+    additionalClients.forEach((client) => client.close());
   });
 
   it('1. Host creates a room with zero bots and strictly human-only configuration', async () => {
@@ -99,12 +104,13 @@ describe('Multiplayer Human-Only System', () => {
     expect(room.roomCode).toBe(roomCode);
     expect(room.isHumanOnly).toBe(true);
     expect(room.hasBots).toBe(false);
+    expect(room.requiredPlayers).toBe(10);
     expect(room.participants.length).toBe(1);
     expect(room.participants[0].name).toBe('Captain Dhoni');
     expect(room.participants[0].isHost).toBe(true);
   });
 
-  it('2. Another human player joins using the room code and claims a franchise', async () => {
+  it('2. Nine more human players join using the room code', async () => {
     guestClient.send({
       type: 'JOIN_ROOM',
       payload: {
@@ -125,11 +131,16 @@ describe('Multiplayer Human-Only System', () => {
     expect(guest.isHost).toBe(false);
     guestParticipantId = guest.id;
 
-    // Host also receives the ROOM_UPDATED with 2 participants
-    const hostSeesGuest = await hostClient.waitForMessage(
-      (m) => m.type === 'ROOM_UPDATED' && m.payload.room?.participants?.length === 2
-    );
-    expect(hostSeesGuest).toBeDefined();
+    for (const [index, client] of additionalClients.entries()) {
+      client.send({
+        type: 'JOIN_ROOM',
+        payload: { roomCode, playerName: `Manager ${index + 3}` },
+      });
+      const joined = await client.waitForMessage((m) => m.type === 'ROOM_JOINED');
+      expect(joined.payload.room.participants.length).toBe(index + 3);
+    }
+
+    expect(guestJoined.payload.room.requiredPlayers).toBe(10);
   });
 
   it('3. Human players claim unique teams; duplicate claims are rejected', async () => {
@@ -180,12 +191,34 @@ describe('Multiplayer Human-Only System', () => {
         )
     );
     expect(guestClaimed).toBeDefined();
+
+    const remainingTeams = [
+      'kolkata-knight-riders',
+      'delhi-capitals',
+      'rajasthan-royals',
+      'sunrisers-hyderabad',
+      'gujarat-titans',
+      'lucknow-super-giants',
+      'punjab-kings',
+      'royal-challengers-bengaluru',
+    ];
+    for (const [index, client] of additionalClients.entries()) {
+      const teamId = remainingTeams[index];
+      client.send({ type: 'CLAIM_TEAM', payload: { teamId } });
+      const claimed = await client.waitForMessage(
+        (m) =>
+          m.type === 'ROOM_UPDATED' &&
+          m.payload.room?.participants.some(
+            (p: any) => p.name === `Manager ${index + 3}` && p.teamId === teamId
+          )
+      );
+      expect(claimed).toBeDefined();
+    }
   });
 
   it('4. Auction starts only when required humans are present and ready', async () => {
-    // Both toggle ready
-    hostClient.send({ type: 'TOGGLE_READY', payload: {} });
-    guestClient.send({ type: 'TOGGLE_READY', payload: {} });
+    const clients = [hostClient, guestClient, ...additionalClients];
+    clients.forEach((client) => client.send({ type: 'TOGGLE_READY', payload: {} }));
 
     await hostClient.waitForMessage(
       (m) =>
@@ -203,7 +236,7 @@ describe('Multiplayer Human-Only System', () => {
     expect(auctionStarted.payload.room.auctionState).toBeDefined();
     expect(auctionStarted.payload.room.auctionState.currentPlayer).toBeDefined();
 
-    // Guest also receives auction state synchronized
+    // Other players also receive auction state synchronized
     const guestAuctionSync = await guestClient.waitForMessage(
       (m) => m.type === 'AUCTION_SYNC'
     );
