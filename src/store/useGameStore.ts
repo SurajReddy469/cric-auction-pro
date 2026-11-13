@@ -339,7 +339,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
     claimMultiplayerTeam: (teamId: string) => {
       multiplayerService.claimTeam(teamId);
-      set({ userTeamId: teamId });
     },
 
     toggleMultiplayerReady: () => {

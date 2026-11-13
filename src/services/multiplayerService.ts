@@ -51,14 +51,16 @@ class MultiplayerService {
     if (customWs) return customWs;
 
     const loc = window.location;
-    // If running on localhost
+    // Use Vite's WebSocket proxy during local development so only one server
+    // origin needs to be exposed to the browser.
     if (loc.hostname === 'localhost' || loc.hostname === '127.0.0.1') {
       return `ws://${loc.hostname}:5173/multiplayer`;
     }
 
-    // Default to the websocket protocol on the same host or port 5175
+    // Production deployments should expose the multiplayer server on the same
+    // host and port as configured by the deployment's reverse proxy.
     const protocol = loc.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${loc.hostname}:5175`;
+    return `${protocol}//${loc.host}/multiplayer`;
   }
 
   private loadOrInitPlayerId(): string {
@@ -85,6 +87,9 @@ class MultiplayerService {
         resolve(true);
         return;
       }
+      if (this.socket && this.socket.readyState === WebSocket.CONNECTING) {
+        this.socket.close();
+      }
 
       this.setConnectionStatus('connecting');
 
@@ -92,7 +97,9 @@ class MultiplayerService {
       const connectTimer = setTimeout(() => {
         if (settled) return;
         settled = true;
-        this.socket?.close();
+        const timedOutSocket = this.socket;
+        this.socket = null;
+        timedOutSocket?.close();
         this.setConnectionStatus('disconnected');
         resolve(false);
       }, 7000);
@@ -130,6 +137,7 @@ class MultiplayerService {
         this.socket.onclose = () => {
           this.setConnectionStatus('disconnected');
           this.stopHeartbeat();
+          this.resolvePendingRoomResponse(false);
         };
       } catch (err) {
         console.error('WebSocket connection failed:', err);
@@ -194,7 +202,7 @@ class MultiplayerService {
         break;
 
       case 'ERROR':
-        this.resolvePendingRoomResponse(false);
+        if (this.pendingRoomResponse) this.resolvePendingRoomResponse(false);
         this.errorListeners.forEach(l => l(message.payload.message));
         break;
     }
@@ -299,6 +307,15 @@ class MultiplayerService {
 
   public disconnect() {
     this.stopHeartbeat();
+    if (this.pendingRoomResponse) this.resolvePendingRoomResponse(false);
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+      this.pingInterval = null;
+    }
     if (this.socket) {
       this.socket.close();
       this.socket = null;
