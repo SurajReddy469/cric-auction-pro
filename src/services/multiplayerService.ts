@@ -61,15 +61,8 @@ class MultiplayerService {
       return `ws://${loc.hostname}:5173/multiplayer`;
     }
 
-    // Vercel serverless CDN cannot run stateful WebSockets; connect to active tunnel
-    if (loc.hostname.includes('vercel.app')) {
-      return 'wss://preferences-displays-billing-processed.trycloudflare.com/multiplayer';
-    }
-
-    // Production deployments should expose the multiplayer server on the same
-    // host and port as configured by the deployment's reverse proxy.
-    const protocol = loc.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${loc.host}/multiplayer`;
+    // Connect to the permanent 24/7 Render cloud multiplayer server
+    return 'wss://cric-auction-pro.onrender.com';
   }
 
   public getServerUrl(): string {
