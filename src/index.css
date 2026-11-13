@@ -42,3 +42,90 @@
 .broadcast-ticker {
   background: linear-gradient(90deg, #d97706, #f59e0b, #d97706);
 }
+
+/* Shared night palette for the app's existing semantic Tailwind colors. */
+.dark body {
+  color: #e2e8f0;
+  background-color: #020617;
+  background-image: none;
+}
+
+.dark [class~="bg-white"],
+.dark [class*="bg-white/95"],
+.dark [class*="bg-white/90"],
+.dark [class*="bg-white/80"] {
+  background-color: #0f172a !important;
+}
+
+.dark [class~="bg-slate-50"],
+.dark [class~="bg-slate-50/40"],
+.dark [class~="bg-slate-50/50"],
+.dark [class~="bg-slate-50/70"],
+.dark [class~="bg-slate-50/80"],
+.dark [class~="bg-slate-50/90"] { background-color: #111827 !important; }
+.dark [class~="bg-slate-100"],
+.dark [class~="bg-slate-100/70"] { background-color: #1e293b !important; }
+.dark [class~="bg-slate-200"],
+.dark [class~="bg-slate-200/60"] { background-color: #334155 !important; }
+.dark [class~="bg-slate-300"] { background-color: #475569 !important; }
+
+/* Convert pastel cards and status panels into muted night surfaces too. */
+.dark [class~="bg-amber-50"],
+.dark [class~="bg-amber-50/40"],
+.dark [class~="bg-amber-50/50"],
+.dark [class~="bg-amber-50/60"],
+.dark [class~="bg-amber-50/70"],
+.dark [class~="bg-amber-50/80"],
+.dark [class~="bg-amber-50/95"],
+.dark [class~="bg-amber-100"],
+.dark [class~="bg-amber-100/20"],
+.dark [class~="bg-amber-100/70"],
+.dark [class~="bg-amber-200"],
+.dark [class~="bg-amber-200/25"] { background-color: #422006 !important; }
+.dark [class~="bg-emerald-50"] { background-color: #052e24 !important; }
+.dark [class~="bg-sky-50"],
+.dark [class~="bg-sky-100"],
+.dark [class~="bg-sky-200"] { background-color: #082f49 !important; }
+.dark [class~="bg-rose-50"],
+.dark [class~="bg-rose-50/20"],
+.dark [class~="bg-rose-100"],
+.dark [class~="bg-red-50"] { background-color: #4c0519 !important; }
+.dark [class~="bg-purple-50"],
+.dark [class~="bg-purple-50/60"],
+.dark [class~="bg-purple-50/70"] { background-color: #3b0764 !important; }
+.dark [class~="bg-orange-50/70"] { background-color: #431407 !important; }
+
+.dark [class~="text-slate-900"] { color: #f8fafc !important; }
+.dark [class~="text-slate-800"],
+.dark [class~="text-slate-700"] { color: #e2e8f0 !important; }
+.dark [class~="text-slate-600"],
+.dark [class~="text-slate-500"],
+.dark [class~="text-slate-400"] { color: #94a3b8 !important; }
+
+.dark [class~="text-amber-900"], .dark [class~="text-amber-800"], .dark [class~="text-amber-700"] { color: #fcd34d !important; }
+.dark [class~="text-emerald-900"], .dark [class~="text-emerald-800"], .dark [class~="text-emerald-700"] { color: #a7f3d0 !important; }
+.dark [class~="text-sky-900"], .dark [class~="text-sky-800"], .dark [class~="text-sky-700"] { color: #bae6fd !important; }
+.dark [class~="text-rose-900"], .dark [class~="text-rose-800"], .dark [class~="text-rose-700"],
+.dark [class~="text-red-900"], .dark [class~="text-red-800"], .dark [class~="text-red-700"] { color: #fecdd3 !important; }
+.dark [class~="text-purple-900"], .dark [class~="text-purple-800"], .dark [class~="text-purple-700"],
+.dark [class~="text-violet-900"], .dark [class~="text-violet-800"], .dark [class~="text-violet-700"] { color: #ddd6fe !important; }
+.dark [class~="text-orange-900"], .dark [class~="text-orange-800"], .dark [class~="text-orange-700"] { color: #fed7aa !important; }
+
+.dark [class*="border-slate-100"],
+.dark [class*="border-slate-200"],
+.dark [class*="border-slate-300"] { border-color: #334155 !important; }
+
+.dark [class~="hover:bg-slate-50"]:hover { background-color: #1e293b !important; }
+.dark [class~="hover:bg-slate-100"]:hover { background-color: #334155 !important; }
+.dark [class~="hover:bg-slate-200"]:hover { background-color: #475569 !important; }
+.dark [class~="hover:text-slate-900"]:hover { color: #f8fafc !important; }
+
+/* Keep dark text on bright primary buttons for contrast. */
+.dark [class~="bg-amber-400"][class~="text-slate-950"],
+.dark [class~="bg-amber-500"][class~="text-slate-950"],
+.dark [class~="bg-emerald-400"][class~="text-slate-950"],
+.dark [class~="bg-emerald-500"][class~="text-slate-950"],
+.dark [class~="bg-amber-400"][class~="text-slate-900"],
+.dark [class~="bg-amber-500"][class~="text-slate-900"],
+.dark [class~="bg-emerald-400"][class~="text-slate-900"],
+.dark [class~="bg-emerald-500"][class~="text-slate-900"] { color: #020617 !important; }

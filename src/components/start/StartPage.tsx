@@ -332,7 +332,7 @@ export const StartPage: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.2 }}
-                className="rounded-xl border p-3.5 sm:p-4 bg-slate-950/90 shadow-inner space-y-2.5"
+                className="rounded-xl border p-3.5 sm:p-4 bg-slate-950/90 shadow-inner"
                 style={{ borderColor: `${selectedTeam.primaryColor}55` }}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -370,17 +370,6 @@ export const StartPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Team Fortress & Strategic Philosophy */}
-                <div className="pt-2 border-t border-white/10 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                  <div className="flex items-center gap-1.5 text-slate-300 truncate">
-                    <span className="text-slate-500 font-bold shrink-0">🏟️ Fortress:</span>
-                    <span className="truncate font-medium">{selectedTeam.stadium || `${selectedTeam.city} Home Ground`}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-slate-300 truncate">
-                    <span className="text-slate-500 font-bold shrink-0">⚡ Style:</span>
-                    <span className="truncate font-medium">{selectedTeam.strategicStrength || selectedTeam.personality || 'Balanced Squad'}</span>
-                  </div>
-                </div>
               </motion.div>
             </AnimatePresence>
           </div>
