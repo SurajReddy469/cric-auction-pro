@@ -9,7 +9,6 @@ import {
   Coins, 
   Search, 
   Trophy, 
-  Sparkles, 
   RotateCcw, 
   UserPlus, 
   ArrowRight, 
@@ -21,12 +20,26 @@ import {
   ChevronDown,
   ChevronUp,
   X,
-  Gavel
+  Gavel,
+  Home,
+  Building2,
+  Users,
+  CalendarDays,
+  Database,
+  Activity,
+  Bell,
+  UserCircle2,
+  ChevronRight,
+  ShieldCheck
 } from 'lucide-react';
 
 type AdminTab = 'cheats' | 'teams' | 'players' | 'auction' | 'tournament' | 'backup';
 
-export const AdminPanel: React.FC = () => {
+interface AdminPanelProps {
+  standalone?: boolean;
+}
+
+export const AdminPanel: React.FC<AdminPanelProps> = ({ standalone = false }) => {
   const {
     teams,
     players,
@@ -57,13 +70,14 @@ export const AdminPanel: React.FC = () => {
     autoCompleteAuction,
   } = useGameStore();
 
-  const [activeTab, setActiveTab] = useState<AdminTab>('cheats');
+  const [activeTab, setActiveTab] = useState<AdminTab>('teams');
   const [copiedNotification, setCopiedNotification] = useState<boolean>(false);
   const [importJsonText, setImportJsonText] = useState<string>('');
   const [importStatus, setImportStatus] = useState<string | null>(null);
 
   // Player search & filter
   const [playerSearch, setPlayerSearch] = useState<string>('');
+  const [teamSearch, setTeamSearch] = useState<string>('');
   const [playerRoleFilter, setPlayerRoleFilter] = useState<string>('all');
   const [playerStatusFilter, setPlayerStatusFilter] = useState<string>('all');
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
@@ -87,9 +101,63 @@ export const AdminPanel: React.FC = () => {
   const [forceSellPrice, setForceSellPrice] = useState<number>(auction.currentPlayer?.basePrice || 2.0);
 
   // Selected Team Roster View
-  const [selectedTeamRosterId, setSelectedTeamRosterId] = useState<string | null>(null);
+  const [selectedTeamRosterId, setSelectedTeamRosterId] = useState<string | null>(teams[0]?.id || null);
+  const [isEditingSelectedTeam, setIsEditingSelectedTeam] = useState(false);
+  const [isSelectedSquadExpanded, setIsSelectedSquadExpanded] = useState(false);
 
   const userTeam = teams.find(t => t.id === userTeamId) || teams[0];
+  const selectedTeam = teams.find(t => t.id === selectedTeamRosterId) || teams[0];
+
+  const pageCopy: Record<AdminTab, { title: string; description: string }> = {
+    cheats: {
+      title: 'Commissioner Overview',
+      description: 'Campaign health, quick controls, and commissioner actions.'
+    },
+    teams: {
+      title: 'Franchise Operations',
+      description: 'Manage franchise budgets, squads, and AI strategy from one workspace.'
+    },
+    players: {
+      title: 'Player Database',
+      description: 'Search, review, edit, and add players to the auction pool.'
+    },
+    auction: {
+      title: 'Live Auction Control',
+      description: 'Monitor the active lot and resolve the auction when needed.'
+    },
+    tournament: {
+      title: 'Tournament Operations',
+      description: 'Review fixtures and apply commissioner match controls.'
+    },
+    backup: {
+      title: 'Data & Backups',
+      description: 'Export a campaign snapshot or restore a saved state.'
+    }
+  };
+
+  const navGroups: { label: string; items: { id: AdminTab; label: string; icon: React.ComponentType<{ className?: string }> }[] }[] = [
+    { label: 'WORKSPACE', items: [{ id: 'cheats', label: 'Overview', icon: Home }] },
+    {
+      label: 'MANAGEMENT',
+      items: [
+        { id: 'teams', label: 'Franchises', icon: Building2 },
+        { id: 'players', label: 'Player Database', icon: Users },
+        { id: 'auction', label: 'Live Auction', icon: Gavel },
+        { id: 'tournament', label: 'Tournament', icon: CalendarDays }
+      ]
+    },
+    { label: 'SYSTEM', items: [{ id: 'backup', label: 'Data & Backups', icon: Database }] }
+  ];
+
+  const liveAuction = auction.phase !== 'idle' && auction.phase !== 'completed';
+  const availablePlayerCount = players.filter(player => !player.isSold && !player.isUnsold).length;
+  const totalPurse = teams.reduce((sum, team) => sum + team.currentPurse, 0);
+  const seasonProgress = leagueMatches.length
+    ? Math.min(100, Math.round((currentMatchIndex / leagueMatches.length) * 100))
+    : 0;
+  const visibleTeams = teams.filter(team =>
+    `${team.name} ${team.shortName} ${team.personality}`.toLowerCase().includes(teamSearch.toLowerCase())
+  );
 
   const handleCopyExport = () => {
     const json = adminExportState();
@@ -198,106 +266,111 @@ export const AdminPanel: React.FC = () => {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto p-3 sm:p-6 lg:p-8 min-h-[calc(100vh-65px)] flex flex-col justify-between space-y-6">
+    <div className="mx-auto grid min-h-[calc(100vh-122px)] w-full max-w-[1680px] grid-cols-1 gap-5 px-3 py-4 sm:px-5 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-6 lg:px-7 lg:py-6">
+      <aside className="admin-sidebar h-fit rounded-3xl border border-slate-200 bg-white p-3 shadow-sm lg:sticky lg:top-24">
+        <div className="mb-4 px-3 pt-2">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Commissioner</p>
+          <p className="mt-1 text-sm font-black text-slate-900">Control Center</p>
+        </div>
+
+        <nav aria-label="Admin workspaces" className="space-y-5">
+          {navGroups.map(group => (
+            <div key={group.label}>
+              <p className="mb-1.5 px-3 text-[9px] font-extrabold tracking-[0.16em] text-slate-400">{group.label}</p>
+              <div className="space-y-1">
+                {group.items.map(item => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      type="button"
+                      key={item.id}
+                      aria-current={isActive ? 'page' : undefined}
+                      onClick={() => {
+                        soundService.playClick();
+                        setActiveTab(item.id);
+                      }}
+                      className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs font-bold transition-colors ${
+                        isActive
+                          ? 'bg-amber-100 text-amber-950 shadow-sm ring-1 ring-amber-200'
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                      }`}
+                    >
+                      <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-amber-800' : 'text-slate-400'}`} />
+                      <span className="flex-1">{item.label}</span>
+                      {isActive && <ChevronRight className="h-3.5 w-3.5" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
+
+        <div className="mt-6 rounded-2xl bg-emerald-50 p-3">
+          <div className="flex items-center gap-2 text-emerald-800">
+            <ShieldCheck className="h-4 w-4" />
+            <span className="text-[10px] font-black uppercase tracking-wide">Admin access</span>
+          </div>
+          <p className="mt-1 text-[10px] leading-relaxed text-emerald-700">Commissioner controls are enabled for this campaign.</p>
+        </div>
+      </aside>
+
+      <main className="min-w-0 space-y-5">
+        <div className="admin-workspace-toolbar flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:px-4">
+          {(activeTab === 'teams' || activeTab === 'players') ? (
+            <label className="relative block w-full sm:max-w-md">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="search"
+                value={activeTab === 'teams' ? teamSearch : playerSearch}
+                onChange={(event) => activeTab === 'teams' ? setTeamSearch(event.target.value) : setPlayerSearch(event.target.value)}
+                placeholder={activeTab === 'teams' ? 'Search franchises...' : 'Search players by name or country...'}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs font-medium text-slate-800 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+              />
+            </label>
+          ) : (
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
+              <Activity className="h-4 w-4 text-emerald-600" />
+              <span>Commissioner workspace</span>
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            <div className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-wide ${liveAuction ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
+              <span className={`h-2 w-2 rounded-full ${liveAuction ? 'animate-pulse bg-emerald-500' : 'bg-slate-400'}`} />
+              {liveAuction ? 'Auction Live' : 'Auction Standby'}
+            </div>
+            <div className="hidden items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-[10px] font-bold text-slate-600 sm:flex">
+              <Bell className="h-3.5 w-3.5 text-amber-600" />
+              <span>{auction.feedMessages.length} updates</span>
+            </div>
+            <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2">
+              <UserCircle2 className="h-4 w-4 text-slate-500" />
+              <span className="max-w-32 truncate text-[10px] font-bold text-slate-700">{profile.name}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">{pageCopy[activeTab].title}</h1>
+            <p className="mt-1 text-xs text-slate-500">{pageCopy[activeTab].description}</p>
+          </div>
+          {!standalone && (
+            <button
+              type="button"
+              onClick={() => { soundService.playClick(); setScreen('menu'); }}
+              className="inline-flex items-center justify-center gap-2 self-start rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-200 sm:self-auto"
+            >
+              <span>Back to Game</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+
+        <div className="space-y-6">
       
-      {/* Top Admin Header Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            CRIC-AUCTION <span className="text-rose-600">COMMAND CENTER</span>
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Full control over team purses, player databases, live hammer overrides, match results, and instant cheats.
-          </p>
-        </div>
-
-        {/* Quick Nav back to Game */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => { soundService.playClick(); setScreen('menu'); }}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-400 font-bold text-xs transition-colors shadow-sm"
-          >
-            <span>Back to Game</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-
-      {/* Navigation Tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-slate-200 no-scrollbar">
-        <button
-          onClick={() => { soundService.playClick(); setActiveTab('cheats'); }}
-          className={`px-4 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 transition-all flex-shrink-0 ${
-            activeTab === 'cheats'
-              ? 'bg-amber-500 text-slate-950 shadow-md ring-2 ring-amber-300'
-              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
-          }`}
-        >
-          <Sparkles className="w-4 h-4" />
-          <span>⚡ GOD MODE CHEATS</span>
-        </button>
-
-        <button
-          onClick={() => { soundService.playClick(); setActiveTab('teams'); }}
-          className={`px-4 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 transition-all flex-shrink-0 ${
-            activeTab === 'teams'
-              ? 'bg-amber-500 text-slate-950 shadow-md ring-2 ring-amber-300'
-              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
-          }`}
-        >
-          <Coins className="w-4 h-4" />
-          <span>🏢 FRANCHISES & PURSES</span>
-        </button>
-
-        <button
-          onClick={() => { soundService.playClick(); setActiveTab('players'); }}
-          className={`px-4 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 transition-all flex-shrink-0 ${
-            activeTab === 'players'
-              ? 'bg-amber-500 text-slate-950 shadow-md ring-2 ring-amber-300'
-              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
-          }`}
-        >
-          <Search className="w-4 h-4" />
-          <span>🏏 PLAYERS & ROSTERS ({players.length})</span>
-        </button>
-
-        <button
-          onClick={() => { soundService.playClick(); setActiveTab('auction'); }}
-          className={`px-4 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 transition-all flex-shrink-0 ${
-            activeTab === 'auction'
-              ? 'bg-amber-500 text-slate-950 shadow-md ring-2 ring-amber-300'
-              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
-          }`}
-        >
-          <Gavel className="w-4 h-4" />
-          <span>🔨 AUCTION HAMMER OVERRIDE</span>
-        </button>
-
-        <button
-          onClick={() => { soundService.playClick(); setActiveTab('tournament'); }}
-          className={`px-4 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 transition-all flex-shrink-0 ${
-            activeTab === 'tournament'
-              ? 'bg-amber-500 text-slate-950 shadow-md ring-2 ring-amber-300'
-              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
-          }`}
-        >
-          <Trophy className="w-4 h-4" />
-          <span>🏆 TOURNAMENT & MATCH RIGGING</span>
-        </button>
-
-        <button
-          onClick={() => { soundService.playClick(); setActiveTab('backup'); }}
-          className={`px-4 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 transition-all flex-shrink-0 ${
-            activeTab === 'backup'
-              ? 'bg-amber-500 text-slate-950 shadow-md ring-2 ring-amber-300'
-              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
-          }`}
-        >
-          <Download className="w-4 h-4" />
-          <span>💾 SAVE / EXPORT / IMPORT</span>
-        </button>
-      </div>
-
       {/* TAB 1: GOD MODE QUICK CHEATS */}
       {activeTab === 'cheats' && (
         <div className="space-y-6">
@@ -504,202 +577,263 @@ export const AdminPanel: React.FC = () => {
 
       {/* TAB 2: FRANCHISES & PURSES */}
       {activeTab === 'teams' && (
-        <div className="space-y-4">
-          <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-            <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-black text-slate-900">Franchise Finances & AI Strategy</h2>
-                <p className="text-xs text-slate-500">Edit any franchise's budget, AI aggression behavior, or career trophy count.</p>
+        <div className="space-y-5">
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                <span>Total Purse Left</span><Coins className="h-4 w-4 text-emerald-700" />
               </div>
-              <button
-                onClick={() => {
-                  teams.forEach(t => adminUpdateTeamPurse(t.id, 120.0));
-                  soundService.playBidSound(true);
-                }}
-                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs"
-              >
-                Reset All Purses to ₹120.00 Cr
-              </button>
+              <p className="mt-3 text-xl font-black text-slate-900">₹{totalPurse.toFixed(2)} Cr</p>
+              <p className="mt-1 text-[10px] text-slate-500">Across {teams.length} franchises</p>
             </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-extrabold uppercase text-[10px] tracking-wider">
-                  <tr>
-                    <th className="py-3 px-4">Franchise</th>
-                    <th className="py-3 px-3">Purse (₹ Cr)</th>
-                    <th className="py-3 px-3">Quick Adjust</th>
-                    <th className="py-3 px-3">AI Personality</th>
-                    <th className="py-3 px-3 text-center">Trophies</th>
-                    <th className="py-3 px-3 text-center">Squad</th>
-                    <th className="py-3 px-4 text-right">Roster</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {teams.map(t => {
-                    const isUser = t.id === userTeamId;
-                    return (
-                      <tr key={t.id} className={isUser ? 'bg-amber-50/50' : 'hover:bg-slate-50/50'}>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2.5">
-                            <TeamBadge teamId={t.id} size="sm" />
-                            <div>
-                              <div className="flex items-center gap-1.5 font-black text-slate-900">
-                                <span>{t.name}</span>
-                                {isUser && (
-                                  <span className="px-1.5 py-0.2 rounded bg-amber-200 text-amber-950 font-black text-[9px]">
-                                    YOU
-                                  </span>
-                                )}
-                              </div>
-                              <span className="text-[10px] text-slate-400 font-mono">{t.city}</span>
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="py-3 px-3 font-mono font-bold text-emerald-700">
-                          <input
-                            type="number"
-                            step="0.5"
-                            value={t.currentPurse}
-                            onChange={(e) => adminUpdateTeamPurse(t.id, parseFloat(e.target.value) || 0)}
-                            className="w-20 px-2 py-1 rounded-lg border border-slate-200 text-xs font-mono font-bold text-slate-900 focus:ring-1 focus:ring-amber-400 outline-none"
-                          />
-                        </td>
-
-                        <td className="py-3 px-3">
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => adminUpdateTeamPurse(t.id, t.currentPurse + 5)}
-                              className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 font-bold text-[10px]"
-                            >
-                              +5
-                            </button>
-                            <button
-                              onClick={() => adminUpdateTeamPurse(t.id, t.currentPurse + 20)}
-                              className="px-2 py-1 rounded bg-amber-100 hover:bg-amber-200 font-bold text-[10px] text-amber-900"
-                            >
-                              +20
-                            </button>
-                            <button
-                              onClick={() => adminUpdateTeamPurse(t.id, Math.max(0, t.currentPurse - 10))}
-                              className="px-2 py-1 rounded bg-slate-100 hover:bg-rose-100 font-bold text-[10px] text-rose-700"
-                            >
-                              -10
-                            </button>
-                          </div>
-                        </td>
-
-                        <td className="py-3 px-3">
-                          <select
-                            value={t.personality}
-                            onChange={(e) => adminUpdateTeamPersonality(t.id, e.target.value as AIPersonality)}
-                            className="px-2 py-1 rounded-lg border border-slate-200 text-xs font-bold text-slate-800 bg-white outline-none"
-                          >
-                            {personalitiesList.map(p => (
-                              <option key={p} value={p}>{p}</option>
-                            ))}
-                          </select>
-                        </td>
-
-                        <td className="py-3 px-3 text-center">
-                          <div className="inline-flex items-center gap-1">
-                            <button
-                              onClick={() => adminUpdateTeamTrophies(t.id, Math.max(0, t.trophies - 1))}
-                              className="w-5 h-5 rounded bg-slate-100 text-slate-700 font-bold text-xs"
-                            >
-                              -
-                            </button>
-                            <span className="font-mono font-bold text-xs px-1">🏆 {t.trophies}</span>
-                            <button
-                              onClick={() => adminUpdateTeamTrophies(t.id, t.trophies + 1)}
-                              className="w-5 h-5 rounded bg-slate-100 text-slate-700 font-bold text-xs"
-                            >
-                              +
-                            </button>
-                          </div>
-                        </td>
-
-                        <td className="py-3 px-3 text-center font-mono font-bold text-slate-600">
-                          {t.squad.length}/25
-                        </td>
-
-                        <td className="py-3 px-4 text-right">
-                          <button
-                            onClick={() => setSelectedTeamRosterId(selectedTeamRosterId === t.id ? null : t.id)}
-                            className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-colors"
-                          >
-                            {selectedTeamRosterId === t.id ? 'Hide Roster' : 'View Roster'}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                <span>Players in Pool</span><Users className="h-4 w-4 text-amber-700" />
+              </div>
+              <p className="mt-3 text-xl font-black text-slate-900">{availablePlayerCount}</p>
+              <p className="mt-1 text-[10px] text-slate-500">Available to be drafted</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                <span>Current Lot</span><Gavel className="h-4 w-4 text-amber-700" />
+              </div>
+              <p className="mt-3 truncate text-lg font-black text-slate-900">{auction.currentPlayer?.name || 'No active lot'}</p>
+              <p className="mt-1 text-[10px] text-slate-500">{auction.currentPlayer ? `Lot ${auction.currentPlayerIndex + 1}` : 'Waiting for auction'}</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                <span>Season Progress</span><Trophy className="h-4 w-4 text-amber-700" />
+              </div>
+              <p className="mt-3 text-xl font-black text-slate-900">{seasonProgress}%</p>
+              <div className="mt-2 flex items-center gap-2">
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${seasonProgress}%` }} />
+                </div>
+                <span className="text-[9px] font-bold text-slate-500">{currentMatchIndex}/{leagueMatches.length}</span>
+              </div>
             </div>
           </div>
 
-          {/* Expanded Selected Team Squad Modal/Section */}
-          {selectedTeamRosterId && (() => {
-            const team = teams.find(t => t.id === selectedTeamRosterId);
-            if (!team) return null;
-            return (
-              <div className="rounded-3xl bg-slate-900 text-white p-5 shadow-xl border border-slate-800">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
-                  <div className="flex items-center gap-3">
-                    <TeamBadge teamId={team.id} size="md" />
-                    <div>
-                      <h3 className="text-base font-black text-amber-400">{team.name} Full Squad</h3>
-                      <p className="text-xs text-slate-400 font-mono">
-                        {team.squad.length} Players Signed • Spent ₹{team.spentPurse.toFixed(2)} Cr
-                      </p>
+          <div className="flex flex-col gap-2 rounded-2xl bg-emerald-900 px-4 py-3 text-white shadow-sm sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+              <span className="inline-flex items-center gap-2 font-black"><span className="h-2 w-2 animate-pulse rounded-full bg-emerald-300" />{liveAuction ? 'AUCTION LIVE' : 'AUCTION MONITOR'}</span>
+              <span className="hidden h-4 w-px bg-white/25 sm:block" />
+              <span className="font-semibold text-emerald-50">{auction.currentPlayer?.name || 'No player is currently on the hammer'}</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-[10px] font-bold text-emerald-50">
+              <span>Current bid <strong className="ml-1 text-white">₹{auction.currentBid.toFixed(2)} Cr</strong></span>
+              <span>Leading <strong className="ml-1 text-white">{auction.highestBidderName || 'No bids yet'}</strong></span>
+              {liveAuction && <span className="rounded-lg bg-white/15 px-2 py-1 font-mono">{auction.timerSeconds}s</span>}
+            </div>
+          </div>
+
+          <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_330px]">
+            <div className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-sm font-black text-slate-900">Franchise Operations</h2>
+                  <p className="mt-1 text-[10px] text-slate-500">Select a franchise to inspect its squad and controls.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    teams.forEach(team => adminUpdateTeamPurse(team.id, 120.0));
+                    soundService.playBidSound(true);
+                  }}
+                  className="rounded-xl bg-slate-100 px-3 py-2 text-[10px] font-bold text-slate-700 transition hover:bg-slate-200"
+                >
+                  Reset all purses
+                </button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[660px] text-left text-xs">
+                  <thead className="bg-slate-50 text-[9px] font-extrabold uppercase tracking-wide text-slate-500">
+                    <tr>
+                      <th className="px-4 py-3">Franchise</th>
+                      <th className="px-3 py-3">Squad</th>
+                      <th className="px-3 py-3">Purse left</th>
+                      <th className="px-3 py-3">Overseas</th>
+                      <th className="px-3 py-3">AI strategy</th>
+                      <th className="px-3 py-3" aria-label="Open details" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {visibleTeams.map(team => {
+                      const isSelected = team.id === selectedTeam?.id;
+                      const overseasCount = team.squad.filter(player => player.isOverseas).length;
+                      return (
+                        <tr key={team.id} className={`transition-colors ${isSelected ? 'bg-amber-50' : 'hover:bg-slate-50'}`}>
+                          <td className="px-4 py-3">
+                            <button
+                              type="button"
+                              aria-pressed={isSelected}
+                              onClick={() => {
+                                setSelectedTeamRosterId(team.id);
+                                setIsEditingSelectedTeam(false);
+                                setIsSelectedSquadExpanded(false);
+                              }}
+                              className="flex items-center gap-2.5 text-left"
+                            >
+                              <TeamBadge teamId={team.id} size="sm" />
+                              <span>
+                                <span className="block font-black text-slate-900">{team.name}</span>
+                                <span className="mt-0.5 block text-[9px] text-slate-400">{team.shortName} · {team.city}{team.id === userTeamId ? ' · Your franchise' : ''}</span>
+                              </span>
+                            </button>
+                          </td>
+                          <td className="px-3 py-3 font-mono font-bold text-slate-700">{team.squad.length}/25</td>
+                          <td className="px-3 py-3 font-mono font-bold text-emerald-800">₹{team.currentPurse.toFixed(2)} Cr</td>
+                          <td className="px-3 py-3 font-mono text-slate-600">{overseasCount}/8</td>
+                          <td className="px-3 py-3">
+                            <span className="inline-flex max-w-36 items-center gap-1.5 truncate rounded-full bg-emerald-50 px-2.5 py-1 text-[9px] font-bold text-emerald-800">
+                              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />{team.personality}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3 text-right">
+                            <button
+                              type="button"
+                              aria-label={`Inspect ${team.name}`}
+                              onClick={() => {
+                                setSelectedTeamRosterId(team.id);
+                                setIsEditingSelectedTeam(false);
+                                setIsSelectedSquadExpanded(false);
+                              }}
+                              className="rounded-lg p-1.5 text-slate-400 transition hover:bg-amber-100 hover:text-amber-800"
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {visibleTeams.length === 0 && (
+                      <tr><td colSpan={6} className="px-4 py-10 text-center text-xs text-slate-500">No franchises match “{teamSearch}”.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {selectedTeam ? (
+              <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <TeamBadge teamId={selectedTeam.id} size="md" />
+                    <div className="min-w-0">
+                      <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Selected franchise</p>
+                      <h2 className="mt-0.5 truncate text-sm font-black text-slate-900">{selectedTeam.name}</h2>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setSelectedTeamRosterId(null)}
-                    className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white"
-                  >
-                    <X className="w-5 h-5" />
+                  <span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-black ${selectedTeam.id === userTeamId ? 'bg-amber-100 text-amber-900' : 'bg-emerald-50 text-emerald-800'}`}>
+                    {selectedTeam.id === userTeamId ? 'Your team' : 'Active'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 divide-x divide-slate-200 py-3 text-center">
+                  <div><p className="text-[9px] text-slate-500">Squad</p><p className="mt-1 text-xs font-black text-slate-900">{selectedTeam.squad.length}/25</p></div>
+                  <div><p className="text-[9px] text-slate-500">Purse left</p><p className="mt-1 text-xs font-black text-slate-900">₹{selectedTeam.currentPurse.toFixed(1)} Cr</p></div>
+                  <div><p className="text-[9px] text-slate-500">Overseas</p><p className="mt-1 text-xs font-black text-slate-900">{selectedTeam.squad.filter(player => player.isOverseas).length}/8</p></div>
+                </div>
+
+                <div className="rounded-xl bg-emerald-50 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[10px] font-black text-emerald-900">AI Strategy</p>
+                    <Activity className="h-3.5 w-3.5 text-emerald-700" />
+                  </div>
+                  <p className="mt-1 text-xs font-bold text-emerald-800">{selectedTeam.personality}</p>
+                  <p className="mt-1 text-[10px] leading-relaxed text-emerald-800/80">{selectedTeam.strategicStrength}</p>
+                </div>
+
+                <div className="mt-4">
+                  <div className="flex items-center justify-between text-[10px] font-bold text-slate-600">
+                    <span>Squad snapshot</span><span>{selectedTeam.squad.length} players</span>
+                  </div>
+                  <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-slate-100">
+                    <span className="bg-emerald-500" style={{ width: `${selectedTeam.squad.length ? ((selectedTeam.squad.length - selectedTeam.squad.filter(player => player.isOverseas).length) / selectedTeam.squad.length) * 100 : 0}%` }} />
+                    <span className="bg-sky-500" style={{ width: `${selectedTeam.squad.length ? (selectedTeam.squad.filter(player => player.isOverseas).length / selectedTeam.squad.length) * 100 : 0}%` }} />
+                  </div>
+                  <div className="mt-2 flex justify-between text-[9px] text-slate-500">
+                    <span>Indian: {selectedTeam.squad.length - selectedTeam.squad.filter(player => player.isOverseas).length}</span>
+                    <span>Overseas: {selectedTeam.squad.filter(player => player.isOverseas).length}</span>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setIsEditingSelectedTeam(!isEditingSelectedTeam)} className="rounded-xl bg-amber-500 px-3 py-2.5 text-[10px] font-black text-slate-950 transition hover:bg-amber-400">
+                    {isEditingSelectedTeam ? 'Done Editing' : 'Edit Franchise'}
+                  </button>
+                  <button type="button" onClick={() => setIsSelectedSquadExpanded(!isSelectedSquadExpanded)} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[10px] font-bold text-slate-700 transition hover:bg-slate-50">
+                    {isSelectedSquadExpanded ? 'Hide Squad' : 'Manage Squad'}
                   </button>
                 </div>
 
-                {team.squad.length === 0 ? (
-                  <div className="p-8 text-center text-xs text-slate-400 border border-dashed border-slate-800 rounded-2xl">
-                    No players signed to this franchise yet. Use Auction Hammer or Player Transfer to add players.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-[360px] overflow-y-auto pr-1">
-                    {team.squad.map((p) => (
-                      <div
-                        key={p.id}
-                        className="p-3 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-between gap-3 text-xs"
-                      >
-                        <div>
-                          <div className="flex items-center gap-1.5 font-bold text-white">
-                            <span>{p.name}</span>
-                            {p.isOverseas && <span className="text-[10px]">✈️</span>}
-                          </div>
-                          <span className="text-[10px] text-amber-400 font-semibold block">{p.role} • OVR {p.overallRating}</span>
-                          <span className="text-[10px] text-emerald-400 font-mono">Signed ₹{p.soldPrice?.toFixed(2) || p.basePrice} Cr</span>
-                        </div>
-
-                        <button
-                          onClick={() => {
-                            adminReleasePlayer(p.id);
-                            soundService.playClick();
-                          }}
-                          className="px-2 py-1 rounded bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white font-bold text-[10px] transition-colors"
-                        >
-                          Release
-                        </button>
+                {isEditingSelectedTeam && (
+                  <div className="mt-3 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <label className="block text-[9px] font-bold text-slate-600">
+                      Purse left (₹ Cr)
+                      <input type="number" step="0.5" min="0" value={selectedTeam.currentPurse} onChange={event => adminUpdateTeamPurse(selectedTeam.id, parseFloat(event.target.value) || 0)} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-bold text-slate-900 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100" />
+                    </label>
+                    <label className="block text-[9px] font-bold text-slate-600">
+                      AI strategy
+                      <select value={selectedTeam.personality} onChange={event => adminUpdateTeamPersonality(selectedTeam.id, event.target.value as AIPersonality)} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-bold text-slate-800 outline-none">
+                        {personalitiesList.map(personality => <option key={personality} value={personality}>{personality}</option>)}
+                      </select>
+                    </label>
+                    <div className="flex items-center justify-between rounded-lg bg-white px-2.5 py-2">
+                      <span className="text-[9px] font-bold text-slate-600">Career trophies</span>
+                      <div className="flex items-center gap-2">
+                        <button type="button" aria-label="Remove trophy" onClick={() => adminUpdateTeamTrophies(selectedTeam.id, Math.max(0, selectedTeam.trophies - 1))} className="h-6 w-6 rounded-md bg-slate-100 text-xs font-black text-slate-700">−</button>
+                        <span className="min-w-5 text-center text-xs font-black text-slate-900">{selectedTeam.trophies}</span>
+                        <button type="button" aria-label="Add trophy" onClick={() => adminUpdateTeamTrophies(selectedTeam.id, selectedTeam.trophies + 1)} className="h-6 w-6 rounded-md bg-slate-100 text-xs font-black text-slate-700">+</button>
                       </div>
-                    ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => adminUpdateTeamPurse(selectedTeam.id, selectedTeam.currentPurse + 5)} className="flex-1 rounded-lg bg-amber-100 py-2 text-[9px] font-bold text-amber-900">+₹5 Cr</button>
+                      <button type="button" onClick={() => adminUpdateTeamPurse(selectedTeam.id, selectedTeam.currentPurse + 20)} className="flex-1 rounded-lg bg-amber-100 py-2 text-[9px] font-bold text-amber-900">+₹20 Cr</button>
+                      <button type="button" onClick={() => adminUpdateTeamPurse(selectedTeam.id, selectedTeam.startingPurse)} className="flex-1 rounded-lg bg-slate-200 py-2 text-[9px] font-bold text-slate-700">Reset</button>
+                    </div>
                   </div>
                 )}
-              </div>
-            );
-          })()}
+
+                {isSelectedSquadExpanded && (
+                  <div className="mt-3 max-h-64 space-y-2 overflow-y-auto pr-1">
+                    {selectedTeam.squad.length ? selectedTeam.squad.map(player => (
+                      <div key={player.id} className="flex items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50 p-2.5">
+                        <div className="min-w-0">
+                          <p className="truncate text-[10px] font-bold text-slate-800">{player.name}</p>
+                          <p className="mt-0.5 text-[9px] text-slate-500">{player.role}{player.isOverseas ? ' · Overseas' : ''}</p>
+                        </div>
+                        <button type="button" onClick={() => adminReleasePlayer(player.id)} className="shrink-0 rounded-lg bg-rose-50 px-2 py-1.5 text-[9px] font-bold text-rose-700 transition hover:bg-rose-100">Release</button>
+                      </div>
+                    )) : <p className="rounded-xl bg-slate-50 p-4 text-center text-[10px] text-slate-500">No players signed to this franchise yet.</p>}
+                  </div>
+                )}
+              </aside>
+            ) : (
+              <aside className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center text-xs text-slate-500">Select a franchise to view its details.</aside>
+            )}
+          </div>
+
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+              <div className="flex items-center gap-2"><Activity className="h-4 w-4 text-amber-700" /><h2 className="text-xs font-black text-slate-900">Recent Events</h2></div>
+              <span className="text-[9px] font-bold text-slate-400">Latest auction activity</span>
+            </div>
+            <div className="divide-y divide-slate-100">
+              {auction.feedMessages.slice(0, 3).length ? auction.feedMessages.slice(0, 3).map(event => {
+                const eventTime = new Date(event.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+                const eventTone = event.type === 'sold' ? 'bg-emerald-50 text-emerald-800' : event.type === 'warning' || event.type === 'unsold' ? 'bg-rose-50 text-rose-800' : event.type === 'bid' ? 'bg-amber-50 text-amber-900' : 'bg-slate-100 text-slate-700';
+                return (
+                  <div key={event.id} className="flex items-center gap-3 px-4 py-2.5">
+                    <span className={`min-w-14 rounded-md px-2 py-1 text-center text-[8px] font-black uppercase ${eventTone}`}>{event.type}</span>
+                    <p className="min-w-0 flex-1 truncate text-[10px] font-medium text-slate-700">{event.text}</p>
+                    <span className="shrink-0 text-[9px] text-slate-400">{eventTime}</span>
+                  </div>
+                );
+              }) : <p className="px-4 py-5 text-center text-[10px] text-slate-500">No auction events yet.</p>}
+            </div>
+          </div>
         </div>
       )}
 
@@ -1395,6 +1529,8 @@ export const AdminPanel: React.FC = () => {
         )}
       </AnimatePresence>
 
+        </div>
+      </main>
     </div>
   );
 };

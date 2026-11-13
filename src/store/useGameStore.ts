@@ -386,6 +386,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     },
 
     claimMultiplayerTeam: (teamId: string) => {
+      set({ userTeamId: teamId });
       multiplayerService.claimTeam(teamId);
     },
 
@@ -2244,9 +2245,11 @@ if (typeof window !== 'undefined') {
   multiplayerService.onRoomUpdate((room) => {
     const store = useGameStore.getState();
     const myPid = multiplayerService.getMyParticipantId();
+    const myParticipant = room.participants.find(p => p.id === myPid || (store.profile?.name && p.name.trim().toLowerCase() === store.profile.name.trim().toLowerCase()));
     useGameStore.setState({
       multiplayerRoom: room,
       myParticipantId: myPid || store.myParticipantId,
+      ...(myParticipant?.teamId ? { userTeamId: myParticipant.teamId } : {}),
       isRoomPaused: room.status === 'paused',
       roomPauseReason: room.pauseReason || null,
       pauseExpiresAt: room.pauseExpiresAt || null,
@@ -2261,9 +2264,13 @@ if (typeof window !== 'undefined') {
 
   multiplayerService.onAuctionSync(({ auctionState, teams, players }) => {
     StorageService.saveLastScreen('auction');
+    const store = useGameStore.getState();
+    const myPid = multiplayerService.getMyParticipantId();
+    const myPart = store.multiplayerRoom?.participants.find(p => p.id === myPid || (store.profile?.name && p.name.trim().toLowerCase() === store.profile.name.trim().toLowerCase()));
     useGameStore.setState({
       auction: auctionState,
       currentScreen: 'auction',
+      ...(myPart?.teamId ? { userTeamId: myPart.teamId } : {}),
       ...(teams && teams.length > 0 ? { teams } : {}),
       ...(players && players.length > 0 ? { players } : {}),
       isRoomPaused: false,

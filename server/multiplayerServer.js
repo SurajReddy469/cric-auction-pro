@@ -119,6 +119,13 @@ function startRoomAuctionTimer(room) {
     const auction = currentRoom.auctionState;
     if (auction.timerSeconds > 0) {
       auction.timerSeconds -= 1;
+      if (auction.timerSeconds <= 3 && auction.currentBid > 0 && auction.highestBidderId) {
+        auction.phase = 'going_twice';
+      } else if (auction.timerSeconds <= 5 && auction.currentBid > 0 && auction.highestBidderId) {
+        auction.phase = 'going_once';
+      } else {
+        auction.phase = 'bidding';
+      }
       broadcastToRoom(room.roomCode, {
         type: 'AUCTION_SYNC',
         payload: {
@@ -198,6 +205,7 @@ function resolveCurrentLot(room) {
     auction.highestBidderId = null;
     auction.highestBidderName = null;
     auction.bidHistory = [];
+    auction.phase = 'bidding';
     auction.timerSeconds = 10;
     auction.totalPlayersAuctioned += 1;
 
@@ -552,7 +560,7 @@ wss.on('connection', (ws) => {
             highestBidderId: null,
             highestBidderName: null,
             bidHistory: [],
-            phase: 'live',
+            phase: 'bidding',
             timerSeconds: 10,
             isPaused: false,
             totalPlayersAuctioned: 0,
@@ -605,8 +613,8 @@ wss.on('connection', (ws) => {
             return;
           }
 
-          // Bid validation
-          if (amount <= auction.currentBid) {
+          // Bid validation (allow opening bid at basePrice if no bids yet)
+          if (auction.highestBidderId && amount <= auction.currentBid) {
             ws.send(JSON.stringify({
               type: 'ERROR',
               payload: { message: `Bid must exceed current bid of ₹${auction.currentBid.toFixed(2)} Cr` }
@@ -634,6 +642,7 @@ wss.on('connection', (ws) => {
           auction.currentBid = amount;
           auction.highestBidderId = team.id;
           auction.highestBidderName = team.name;
+          auction.phase = 'bidding';
           auction.timerSeconds = 10; // Reset countdown on new bid!
 
           auction.bidHistory.unshift({
