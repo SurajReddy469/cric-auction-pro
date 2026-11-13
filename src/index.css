@@ -129,3 +129,22 @@
 .dark [class~="bg-amber-500"][class~="text-slate-900"],
 .dark [class~="bg-emerald-400"][class~="text-slate-900"],
 .dark [class~="bg-emerald-500"][class~="text-slate-900"] { color: #020617 !important; }
+
+/* Give the Dashboard a readable light palette when day mode is selected. */
+.day .dashboard-day [class*="bg-slate-950"] { background-color: #ffffff !important; }
+.day .dashboard-day [class*="bg-slate-900"] { background-color: #f8fafc !important; }
+.day .dashboard-day [class*="bg-slate-800"] { background-color: #e2e8f0 !important; }
+
+.day .dashboard-day [class~="text-white"] { color: #0f172a !important; }
+.day .dashboard-day [class~="text-slate-200"],
+.day .dashboard-day [class~="text-slate-300"] { color: #334155 !important; }
+.day .dashboard-day [class~="text-slate-400"] { color: #64748b !important; }
+.day .dashboard-day [class~="text-amber-300"],
+.day .dashboard-day [class~="text-amber-400"] { color: #a16207 !important; }
+.day .dashboard-day [class~="text-emerald-300"],
+.day .dashboard-day [class~="text-emerald-400"] { color: #047857 !important; }
+.day .dashboard-day [class~="text-blue-300"],
+.day .dashboard-day [class~="text-blue-400"] { color: #1d4ed8 !important; }
+.day .dashboard-day [class~="text-cyan-300"] { color: #0e7490 !important; }
+
+.day .dashboard-day [class*="border-white"] { border-color: #cbd5e1 !important; }
