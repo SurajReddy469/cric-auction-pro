@@ -18,8 +18,6 @@ export const MainAuctionScreen: React.FC = () => {
     tickAuctionTimer,
     setScoutModalOpen,
     settings,
-    updateSettings,
-    autoCompleteAuction,
   } = useGameStore();
 
   // Timer interval effect
@@ -155,36 +153,8 @@ export const MainAuctionScreen: React.FC = () => {
               </div>
             </div>
 
-            {/* Center / Right: Speed Controls & Countdown Timer */}
+            {/* Center / Right: Countdown Timer */}
             <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
-              {/* Auction Pace Quick Switcher */}
-              <div className="flex items-center rounded-xl bg-slate-100 p-1 border border-slate-200 text-[10px] font-bold">
-                <button
-                  onClick={() => { soundService.playClick(); updateSettings({ timerSpeed: 'standard' }); }}
-                  className={`px-2 py-1 rounded-lg transition-all ${settings.timerSpeed === 'standard' ? 'bg-white text-slate-900 shadow-sm font-black' : 'text-slate-500'}`}
-                >
-                  1x Real
-                </button>
-                <button
-                  onClick={() => { soundService.playClick(); updateSettings({ timerSpeed: 'fast' }); }}
-                  className={`px-2 py-1 rounded-lg transition-all ${settings.timerSpeed === 'fast' ? 'bg-amber-500 text-slate-950 shadow-sm font-black' : 'text-slate-500'}`}
-                >
-                  ⚡ Fast
-                </button>
-                <button
-                  onClick={() => {
-                    if (window.confirm('Simulate all remaining rounds and generate complete team rosters?')) {
-                      soundService.playGavel();
-                      autoCompleteAuction();
-                    }
-                  }}
-                  className="px-2 py-1 rounded-lg text-slate-600 hover:text-slate-900 transition-all"
-                  title="Fast auto-simulate full auction"
-                >
-                  ⏩ Auto-Sim
-                </button>
-              </div>
-
               {/* Countdown Clock */}
               <div className="flex items-center justify-center gap-1.5 sm:gap-2 rounded-2xl bg-slate-50 px-2.5 sm:px-4 py-1 sm:py-1.5 border border-slate-200 min-w-[86px] flex-shrink-0">
                 <Timer className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isUrgent ? 'text-rose-600 animate-pulse' : 'text-amber-600'}`} />
