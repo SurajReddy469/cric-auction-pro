@@ -52,6 +52,7 @@ export interface GameStoreState {
     roomName: string;
     playerName: string;
     requiredPlayers: number;
+    maxParticipants?: number;
     purseCap: number;
     hostTeamId?: string;
     roomCode?: string;
@@ -175,9 +176,13 @@ if (typeof document !== 'undefined') {
   if (initialSettings.theme === 'night') {
     document.documentElement.classList.add('dark');
     document.documentElement.classList.remove('day');
+    document.documentElement.setAttribute('data-theme', 'night');
+    document.documentElement.style.colorScheme = 'dark';
   } else {
     document.documentElement.classList.remove('dark');
     document.documentElement.classList.add('day');
+    document.documentElement.setAttribute('data-theme', 'day');
+    document.documentElement.style.colorScheme = 'light';
   }
 }
 
@@ -1639,9 +1644,13 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         if (merged.theme === 'night') {
           document.documentElement.classList.add('dark');
           document.documentElement.classList.remove('day');
+          document.documentElement.setAttribute('data-theme', 'night');
+          document.documentElement.style.colorScheme = 'dark';
         } else {
           document.documentElement.classList.remove('dark');
           document.documentElement.classList.add('day');
+          document.documentElement.setAttribute('data-theme', 'day');
+          document.documentElement.style.colorScheme = 'light';
         }
       }
       set({ settings: merged });
@@ -1713,6 +1722,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     toggleTheme: () => {
       const current = get().settings;
       const nextTheme = current.theme === 'day' ? 'night' : 'day';
+      soundService.playClick();
       get().updateSettings({ theme: nextTheme });
     },
 

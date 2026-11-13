@@ -95,7 +95,7 @@ export const Navbar: React.FC = () => {
   ];
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md shadow-sm">
+    <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/95 dark:border-slate-800/80 dark:bg-slate-900/95 backdrop-blur-md shadow-sm transition-colors duration-300">
       {/* Broadcast Ticker Bar */}
       <div className={`h-1 w-full bg-gradient-to-r ${
         gameMode === 'multiplayer'
@@ -118,11 +118,10 @@ export const Navbar: React.FC = () => {
             </div>
             <div className="hidden xs:block sm:block" aria-hidden="true" />
           </button>
-
         </div>
 
         {/* Desktop Navigation Screen Links */}
-        <nav className={`${currentScreen === 'start' ? 'hidden' : 'hidden md:flex'} items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200`}>
+        <nav className={`${currentScreen === 'start' ? 'hidden' : 'hidden md:flex'} items-center gap-1 bg-slate-100 dark:bg-slate-950 p-1 rounded-xl border border-slate-200 dark:border-slate-800`}>
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentScreen === item.screen;
@@ -136,8 +135,8 @@ export const Navbar: React.FC = () => {
                   isActive
                     ? 'bg-amber-500 text-slate-950 shadow-sm font-bold'
                     : item.disabled
-                    ? 'text-slate-400 opacity-60 hover:text-slate-600'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                    ? 'text-slate-400 dark:text-slate-600 opacity-60'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800'
                 }`}
               >
                 <Icon className={`w-3.5 h-3.5 ${item.highlight && !isActive ? 'text-amber-600 animate-pulse' : ''}`} />
@@ -153,61 +152,80 @@ export const Navbar: React.FC = () => {
           })}
         </nav>
 
-        <button
-          type="button"
-          onClick={toggleTheme}
-          aria-pressed={settings.theme === 'night'}
-          aria-label={settings.theme === 'day' ? 'Switch to night mode' : 'Switch to day mode'}
-          title={settings.theme === 'day' ? 'Night mode' : 'Day mode'}
-          className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
-        >
-          {settings.theme === 'day' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-          <span className="hidden sm:inline">{settings.theme === 'day' ? 'Night' : 'Day'}</span>
-        </button>
-
-        {/* Right Stats & Controls */}
-        <div className={`${currentScreen === 'start' ? 'hidden' : 'flex'} items-center gap-1.5 sm:gap-2`}>
-          {/* Sound Toggle */}
+        {/* Right Controls: One-Click Day/Night Switch ALWAYS Visible */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Universal One-Click Day / Night Mode Switch */}
           <button
             type="button"
-            onClick={toggleSound}
-            aria-label={settings.soundEnabled ? 'Mute sound effects' : 'Unmute sound effects'}
-            title={settings.soundEnabled ? 'Mute Sounds' : 'Unmute Sounds'}
-            className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-amber-600 hover:border-amber-300 shadow-sm transition-colors"
+            onClick={toggleTheme}
+            aria-pressed={settings.theme === 'night'}
+            aria-label={settings.theme === 'day' ? 'Switch to Night mode' : 'Switch to Day mode'}
+            title={settings.theme === 'day' ? 'Click for Night Mode (Dark)' : 'Click for Day Mode (Light)'}
+            className={`inline-flex h-8 sm:h-9 items-center justify-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-3 text-xs font-black shadow-sm transition-all duration-300 border active:scale-95 cursor-pointer ${
+              settings.theme === 'day'
+                ? 'bg-amber-500/15 border-amber-400/50 text-amber-800 hover:bg-amber-500/25 shadow-amber-500/10'
+                : 'bg-indigo-500/25 border-indigo-400/50 text-indigo-200 hover:bg-indigo-500/35 shadow-indigo-500/20'
+            }`}
           >
-            {settings.soundEnabled ? <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600" /> : <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400" />}
+            {settings.theme === 'day' ? (
+              <>
+                <Sun className="h-4 w-4 text-amber-600 fill-amber-400 animate-pulse" />
+                <span className="font-extrabold tracking-wide">Day</span>
+              </>
+            ) : (
+              <>
+                <Moon className="h-4 w-4 text-indigo-300 fill-indigo-300 animate-pulse" />
+                <span className="font-extrabold tracking-wide">Night</span>
+              </>
+            )}
           </button>
 
-          {/* Settings Trigger */}
-          <button
-            type="button"
-            onClick={() => setSettingsOpen(true)}
-            aria-label="Open settings"
-            title="Game Settings"
-            className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300 shadow-sm transition-colors"
-          >
-            <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          </button>
+          {/* Additional controls for active game screens */}
+          {currentScreen !== 'start' && (
+            <>
+              {/* Sound Toggle */}
+              <button
+                type="button"
+                onClick={toggleSound}
+                aria-label={settings.soundEnabled ? 'Mute sound effects' : 'Unmute sound effects'}
+                title={settings.soundEnabled ? 'Mute Sounds' : 'Unmute Sounds'}
+                className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-amber-600 hover:border-amber-300 shadow-sm transition-colors"
+              >
+                {settings.soundEnabled ? <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600" /> : <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400" />}
+              </button>
 
-          {/* Reset / Restart */}
-          <button
-            type="button"
-            onClick={() => {
-              if (window.confirm('Start a fresh new auction campaign? This will reset the current draft and season.')) {
-                resetAllGameData();
-              }
-            }}
-            aria-label="Reset game data"
-            title="Reset / Start Fresh"
-            className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-rose-600 hover:border-rose-300 shadow-sm transition-colors"
-          >
-            <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          </button>
+              {/* Settings Trigger */}
+              <button
+                type="button"
+                onClick={() => setSettingsOpen(true)}
+                aria-label="Open settings"
+                title="Game Settings"
+                className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 shadow-sm transition-colors"
+              >
+                <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </button>
+
+              {/* Reset / Restart */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm('Start a fresh new auction campaign? This will reset the current draft and season.')) {
+                    resetAllGameData();
+                  }
+                }}
+                aria-label="Reset game data"
+                title="Reset / Start Fresh"
+                className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-rose-600 hover:border-rose-300 shadow-sm transition-colors"
+              >
+                <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </button>
+            </>
+          )}
         </div>
       </div>
 
       {/* Mobile Phone Screen Navigation Bar */}
-      <div className={`${currentScreen === 'start' ? 'hidden' : 'grid'} ${navItems.length === 5 ? 'grid-cols-5' : 'grid-cols-4'} md:hidden px-2 py-1 border-t border-slate-200 gap-1 bg-slate-50/90 text-center`}>
+      <div className={`${currentScreen === 'start' ? 'hidden' : 'grid'} ${navItems.length === 5 ? 'grid-cols-5' : 'grid-cols-4'} md:hidden px-2 py-1 border-t border-slate-200 dark:border-slate-800 gap-1 bg-slate-50/90 dark:bg-slate-900/90 text-center`}>
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentScreen === item.screen;
