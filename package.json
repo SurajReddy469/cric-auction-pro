@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:multiplayer": "node server/multiplayerServer.js",
     "dev:admin": "vite --config admin/vite.config.ts admin",
     "build": "tsc -b && vite build && vite build admin --config admin/vite.config.ts --outDir ../dist/admin",
     "lint": "oxlint",
