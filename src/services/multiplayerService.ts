@@ -202,6 +202,9 @@ class MultiplayerService {
         this.resolvePendingRoomResponse(true);
         this.currentRoom = message.payload.room;
         this.myParticipantId = message.payload.myParticipantId;
+        if (typeof localStorage !== 'undefined' && this.myParticipantId) {
+          localStorage.setItem('cric_mp_player_id', this.myParticipantId);
+        }
         this.roomListeners.forEach(l => l(message.payload.room));
         break;
 
@@ -269,7 +272,7 @@ class MultiplayerService {
     return response;
   }
 
-  public async joinRoom(roomCode: string, playerName: string): Promise<boolean> {
+  public async joinRoom(roomCode: string, playerName: string, teamId?: string): Promise<boolean> {
     if (!await this.connect()) {
       this.errorListeners.forEach(l => l(`Could not connect to multiplayer server at ${this.serverUrl}. Start the multiplayer server locally or configure VITE_MULTIPLAYER_WS_URL.`));
       return false;
@@ -280,7 +283,8 @@ class MultiplayerService {
       payload: {
         roomCode,
         playerName,
-        playerId: this.myParticipantId
+        playerId: this.myParticipantId,
+        teamId,
       }
     });
     return response;

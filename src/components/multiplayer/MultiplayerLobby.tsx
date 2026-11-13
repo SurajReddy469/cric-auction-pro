@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useGameStore } from '../../store/useGameStore';
 import { TeamBadge } from '../common/TeamBadge';
 import { soundService } from '../../services/soundService';
+import { multiplayerService } from '../../services/multiplayerService';
 import {
   Users,
   Copy,
@@ -20,6 +21,7 @@ export const MultiplayerLobby: React.FC = () => {
   const {
     multiplayerRoom,
     myParticipantId,
+    profile,
     teams,
     claimMultiplayerTeam,
     toggleMultiplayerReady,
@@ -48,8 +50,21 @@ export const MultiplayerLobby: React.FC = () => {
   }
 
   const { roomCode, roomName, requiredPlayers, participants } = multiplayerRoom;
-  const myParticipant = participants.find(p => p.id === myParticipantId);
+
+  // Resolve current participant with rock-solid fallbacks across all devices
+  const myParticipant = participants.find(p => p.id === myParticipantId)
+    || (profile?.name ? participants.find(p => p.name.trim().toLowerCase() === profile.name.trim().toLowerCase()) : undefined)
+    || participants.find(p => p.id === multiplayerService.getMyParticipantId())
+    || (participants.length === 1 ? participants[0] : undefined);
+
+  const effectiveMyId = myParticipant?.id || myParticipantId;
   const isHost = myParticipant?.isHost ?? false;
+
+  useEffect(() => {
+    if (myParticipant && myParticipant.id && myParticipant.id !== myParticipantId) {
+      useGameStore.setState({ myParticipantId: myParticipant.id });
+    }
+  }, [myParticipant, myParticipantId]);
   const readyCount = participants.filter(p => p.isReady).length;
   const hasEnoughPlayers = participants.length >= requiredPlayers;
   const allReady = hasEnoughPlayers && participants.every(p => p.isReady && p.teamId);
@@ -112,7 +127,7 @@ export const MultiplayerLobby: React.FC = () => {
     }
 
     // If all participants have franchises and only the host is unready, auto-ready the host and launch!
-    if (unreadyWithTeam.length === 1 && unreadyWithTeam[0].id === myParticipantId) {
+    if (unreadyWithTeam.length === 1 && (unreadyWithTeam[0].id === effectiveMyId || unreadyWithTeam[0].isHost)) {
       soundService.playClick();
       toggleMultiplayerReady();
       soundService.playGavel();
@@ -247,7 +262,7 @@ export const MultiplayerLobby: React.FC = () => {
 
           <div className="space-y-2.5">
             {participants.map((p) => {
-              const isMe = p.id === myParticipantId;
+              const isMe = p.id === effectiveMyId;
               const claimedTeam = teams.find(t => t.id === p.teamId);
 
               return (
@@ -307,25 +322,35 @@ export const MultiplayerLobby: React.FC = () => {
 
           {/* User Ready & Start Controls */}
           <div className="pt-2 space-y-3">
-            {isHost && !myParticipant?.teamId && (
+            {!myParticipant?.teamId && (
               <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 text-xs font-bold flex items-center gap-2">
                 <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
-                <span>Host Action: Claim your franchise in the right column first.</span>
+                <span>
+                  {isHost 
+                    ? 'Host Action: Pick your franchise in the right column, or click below to auto-claim and ready up.'
+                    : 'Manager Action: Pick your franchise in the right column, or click below to auto-claim and ready up.'}
+                </span>
               </div>
             )}
 
             <button
+              type="button"
               onClick={() => {
                 soundService.playClick();
+                // If player doesn't have a team yet, find and claim first available team
+                if (!myParticipant?.teamId) {
+                  const claimedTeamIds = new Set(participants.map(p => p.teamId).filter(Boolean));
+                  const availableTeam = teams.find(t => !claimedTeamIds.has(t.id));
+                  if (availableTeam) {
+                    claimMultiplayerTeam(availableTeam.id);
+                  }
+                }
                 toggleMultiplayerReady();
               }}
-              disabled={!myParticipant?.teamId}
-              className={`w-full py-3.5 rounded-2xl font-black text-sm tracking-wide shadow-md transition-all flex items-center justify-center gap-2 ${
-                !myParticipant?.teamId
-                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                  : myParticipant?.isReady
-                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20'
-                  : 'bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-amber-400/20'
+              className={`w-full py-3.5 rounded-2xl font-black text-sm tracking-wide shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 ${
+                myParticipant?.isReady
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/30 ring-2 ring-emerald-400/40'
+                  : 'bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-amber-400/30 ring-2 ring-amber-300/40'
               }`}
             >
               {myParticipant?.isReady ? (
@@ -336,7 +361,7 @@ export const MultiplayerLobby: React.FC = () => {
               ) : (
                 <>
                   <Sparkles className="h-4 w-4" />
-                  <span>Ready Up for Auction</span>
+                  <span>{!myParticipant?.teamId ? 'Claim Franchise & Ready Up' : 'Ready Up for Auction'}</span>
                 </>
               )}
             </button>
@@ -372,7 +397,7 @@ export const MultiplayerLobby: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {teams.map((team) => {
               const claimedBy = participants.find(p => p.teamId === team.id);
-              const isClaimedByMe = claimedBy?.id === myParticipantId;
+              const isClaimedByMe = claimedBy?.id === effectiveMyId || (myParticipant && claimedBy?.id === myParticipant.id);
               const isClaimedByOther = claimedBy && !isClaimedByMe;
 
               return (
