@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '../../store/useGameStore';
 import { soundService } from '../../services/soundService';
+import { multiplayerService } from '../../services/multiplayerService';
 import {
   X,
   Users,
@@ -10,7 +11,8 @@ import {
   ShieldCheck,
   Sparkles,
   ArrowRight,
-  AlertCircle
+  AlertCircle,
+  CheckCircle2
 } from 'lucide-react';
 
 export const MultiplayerModal: React.FC = () => {
@@ -30,6 +32,31 @@ export const MultiplayerModal: React.FC = () => {
   const [requiredPlayers, setRequiredPlayers] = useState<number>(2);
   const [roomCodeInput, setRoomCodeInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [serverUrl, setServerUrl] = useState(() => multiplayerService.getServerUrl());
+  const [showServerConfig, setShowServerConfig] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState(multiplayerService.connectionStatus);
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [testResult, setTestResult] = useState<'success' | 'fail' | null>(null);
+
+  useEffect(() => {
+    const unsub = multiplayerService.onConnectionChange((status) => {
+      setConnectionStatus(status);
+    });
+    return () => {
+      unsub();
+    };
+  }, []);
+
+  const handleTestConnection = async () => {
+    setTestingConnection(true);
+    setTestResult(null);
+    multiplayerService.setServerUrl(serverUrl);
+    const ok = await multiplayerService.connect();
+    setTestingConnection(false);
+    setTestResult(ok ? 'success' : 'fail');
+    if (ok) soundService.playClick();
+    else soundService.playBuzzer();
+  };
 
   useEffect(() => {
     if (isMultiplayerModalOpen && !playerName) {
@@ -283,6 +310,67 @@ export const MultiplayerModal: React.FC = () => {
                 </div>
               </form>
             )}
+
+            {/* Server Connection Status & Config */}
+            <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
+              <div className="flex items-center justify-between text-[11px] text-slate-500 font-semibold">
+                <div className="flex items-center gap-1.5 truncate mr-2">
+                  <span
+                    className={`inline-block h-2 w-2 shrink-0 rounded-full ${
+                      connectionStatus === 'connected' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'
+                    }`}
+                  />
+                  <span className="truncate">
+                    Server: {serverUrl.replace(/wss?:\/\//, '')}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundService.playClick();
+                    setShowServerConfig(!showServerConfig);
+                  }}
+                  className="text-amber-600 hover:text-amber-700 font-bold shrink-0 text-xs"
+                >
+                  {showServerConfig ? 'Hide' : 'Server Config'}
+                </button>
+              </div>
+
+              {showServerConfig && (
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-600">
+                    WebSocket Server URL
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={serverUrl}
+                      onChange={(e) => setServerUrl(e.target.value)}
+                      placeholder="wss://... or ws://localhost:5173/multiplayer"
+                      className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-mono text-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                    />
+                    <button
+                      type="button"
+                      disabled={testingConnection}
+                      onClick={handleTestConnection}
+                      className="px-3 py-1.5 rounded-lg bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold transition-all shrink-0"
+                    >
+                      {testingConnection ? 'Testing...' : 'Test'}
+                    </button>
+                  </div>
+                  {testResult === 'success' && (
+                    <p className="text-[11px] text-emerald-600 font-bold flex items-center gap-1">
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Connected successfully to multiplayer server!
+                    </p>
+                  )}
+                  {testResult === 'fail' && (
+                    <p className="text-[11px] text-red-600 font-bold flex items-center gap-1">
+                      <AlertCircle className="h-3.5 w-3.5" /> Failed to connect. Please verify server address.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </motion.div>
       </div>
