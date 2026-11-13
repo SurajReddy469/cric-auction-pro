@@ -63,7 +63,7 @@ class MultiplayerService {
 
     // Vercel serverless CDN cannot run stateful WebSockets; connect to active tunnel
     if (loc.hostname.includes('vercel.app')) {
-      return 'wss://mild-hereby-followed-leather.trycloudflare.com/multiplayer';
+      return 'wss://preferences-displays-billing-processed.trycloudflare.com/multiplayer';
     }
 
     // Production deployments should expose the multiplayer server on the same
