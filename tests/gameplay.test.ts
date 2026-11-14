@@ -106,4 +106,46 @@ describe('End-to-End Single-Player Game Lifecycle', () => {
     expect(finalMatch!.isPlayed).toBe(true);
     expect(finalMatch!.winnerTeamId).toBe(champion!.id);
   });
+
+  it('preserves user currentScreen when navigating away from auction (no 1-second snapping loop)', () => {
+    const store = useGameStore.getState();
+    store.setScreen('auction');
+    expect(useGameStore.getState().currentScreen).toBe('auction');
+
+    // User navigates to room lobby
+    store.setScreen('multiplayer_lobby');
+    expect(useGameStore.getState().currentScreen).toBe('multiplayer_lobby');
+
+    // Simulate store receiving auction clock sync in background
+    useGameStore.setState({
+      auction: {
+        ...useGameStore.getState().auction,
+        timerSeconds: 7,
+        currentBid: 2.5,
+      },
+    });
+
+    // Screen must remain on lobby
+    expect(useGameStore.getState().currentScreen).toBe('multiplayer_lobby');
+
+    // User navigates to squad
+    store.setScreen('squad');
+    expect(useGameStore.getState().currentScreen).toBe('squad');
+
+    // Another timer tick arrives
+    useGameStore.setState({
+      auction: {
+        ...useGameStore.getState().auction,
+        timerSeconds: 6,
+        currentBid: 3.0,
+      },
+    });
+
+    // Screen must remain on squad
+    expect(useGameStore.getState().currentScreen).toBe('squad');
+
+    // User explicitly returns to live auction
+    store.setScreen('auction');
+    expect(useGameStore.getState().currentScreen).toBe('auction');
+  });
 });
