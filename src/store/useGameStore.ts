@@ -11,7 +11,7 @@ import { REAL_IPL_TEAMS, FICTIONAL_TEAMS, INITIAL_TEAMS } from '../data/teams';
 import { REAL_IPL_PLAYERS, FICTIONAL_PLAYERS, INITIAL_PLAYERS } from '../data/players';
 import { INITIAL_ACHIEVEMENTS } from '../data/achievements';
 import { soundService } from '../services/soundService';
-import { getNextBidAmount, getAIDecision } from '../services/aiBiddingEngine';
+import { getNextBidAmount, getAIDecision, evaluatePlayerForTeam } from '../services/aiBiddingEngine';
 import { 
   generateLeagueSchedule, 
   simulateSingleMatch, 
@@ -1264,20 +1264,36 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
       remainingPlayers.forEach(p => {
         let winningTeam: Team | null = null;
-        let winningPrice = 0;
+        let highestWillingToPay = 0;
+        let secondHighestWillingToPay = 0;
 
-        updatedTeams.forEach(t => {
-          if (t.id === userTeamId) return;
-          const evalRes = getAIDecision(t, p, 0, null, [], settings.aiAggression);
-          if (evalRes.shouldBid && evalRes.nextBidAmount > winningPrice && evalRes.nextBidAmount <= t.currentPurse) {
-            winningTeam = t;
-            winningPrice = evalRes.nextBidAmount;
+        // Evaluate all AI teams with squad space
+        const candidateTeams = [...updatedTeams].filter(t => t.id !== userTeamId && t.squad.length < 25);
+        candidateTeams.forEach(t => {
+          const evalRes = evaluatePlayerForTeam(t, p, [], settings.aiAggression);
+          const maxPay = Math.min(evalRes.maxWillingToPay, t.currentPurse);
+          if (maxPay >= p.basePrice) {
+            if (maxPay > highestWillingToPay) {
+              secondHighestWillingToPay = highestWillingToPay;
+              highestWillingToPay = maxPay;
+              winningTeam = t;
+            } else if (maxPay > secondHighestWillingToPay) {
+              secondHighestWillingToPay = maxPay;
+            }
           }
         });
 
-        if (winningTeam && winningPrice > 0) {
-          const teamRef = updatedTeams.find(t => t.id === (winningTeam as any).id)!;
-          const finalPrice = Math.min(teamRef.currentPurse, Math.max(p.basePrice, Number((winningPrice * (0.85 + Math.random() * 0.3)).toFixed(2))));
+        if (winningTeam && highestWillingToPay >= p.basePrice) {
+          const teamRef = updatedTeams.find(t => t.id === winningTeam!.id)!;
+          const finalPrice = Math.min(
+            teamRef.currentPurse,
+            Math.max(
+              p.basePrice,
+              secondHighestWillingToPay > 0
+                ? Number((secondHighestWillingToPay + 0.25).toFixed(2))
+                : p.basePrice
+            )
+          );
           teamRef.currentPurse = Number((teamRef.currentPurse - finalPrice).toFixed(2));
           teamRef.spentPurse = Number((teamRef.spentPurse + finalPrice).toFixed(2));
           const bought = { ...p, isSold: true, soldPrice: finalPrice, soldToTeamId: teamRef.id };
@@ -1286,6 +1302,25 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
           const pIdx = updatedPlayers.findIndex(x => x.id === p.id);
           if (pIdx !== -1) updatedPlayers[pIdx] = bought;
+        }
+      });
+
+      // 3. Accelerated draft: Ensure every AI team fulfills the mandatory 11-player Starting XI
+      updatedTeams.forEach(t => {
+        if (t.id === userTeamId) return;
+        while (t.squad.length < 11) {
+          const availablePlayer = updatedPlayers.find(p => !p.isSold && t.currentPurse >= p.basePrice)
+            || updatedPlayers.find(p => !p.isSold);
+          if (!availablePlayer) break;
+          availablePlayer.isSold = true;
+          availablePlayer.isUnsold = false;
+          const cost = Math.min(t.currentPurse, availablePlayer.basePrice);
+          availablePlayer.soldPrice = cost;
+          availablePlayer.soldToTeamId = t.id;
+          t.currentPurse = Number((t.currentPurse - cost).toFixed(2));
+          t.spentPurse = Number((t.spentPurse + cost).toFixed(2));
+          t.squad.push(availablePlayer);
+          if (t.startingXI.length < 11) t.startingXI.push(availablePlayer.id);
         }
       });
 
