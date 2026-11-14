@@ -20,6 +20,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { SessionFormat } from '../../types/session';
+import { INITIAL_TEAMS } from '../../data/teams';
 
 type SessionMode = 'singleplayer' | 'multiplayer';
 
@@ -60,7 +61,8 @@ export const StartPage: React.FC = () => {
   const [roomCode, setRoomCode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const selectedTeam = teams.find(t => t.id === selectedTeamId) || teams[0];
+  const availableTeams = (teams && teams.length >= 10) ? teams : INITIAL_TEAMS;
+  const selectedTeam = availableTeams.find(t => t.id === selectedTeamId) || availableTeams[0];
   const isExistingCampaignActive = (auction.phase !== 'idle' && auction.phase !== 'completed') || leagueMatches.length > 0;
   const purseCap = format === 'mini' ? 60 : format === 'turbo' ? 90 : 120;
   const isNameValid = name.trim().length >= 2;
@@ -360,7 +362,7 @@ export const StartPage: React.FC = () => {
 
             {/* 10 Franchise Grid - Highly Responsive (2 cols mobile, 5 cols desktop) */}
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-2.5">
-              {teams.map((t) => {
+              {availableTeams.map((t) => {
                 const isSelected = t.id === selectedTeamId;
                 return (
                   <motion.button

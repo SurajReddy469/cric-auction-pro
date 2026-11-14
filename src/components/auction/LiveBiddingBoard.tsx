@@ -33,6 +33,7 @@ export const LiveBiddingBoard: React.FC = () => {
   const activeTeamId = (gameMode === 'multiplayer' && myMpParticipant?.teamId)
     ? myMpParticipant.teamId
     : userTeamId;
+  const humanTeamIds = new Set(multiplayerRoom?.participants.map((participant) => participant.teamId) ?? []);
 
   return (
     <div className="rounded-3xl bg-white border border-slate-200/90 p-4 sm:p-5 shadow-sm flex flex-col h-full">
@@ -43,7 +44,7 @@ export const LiveBiddingBoard: React.FC = () => {
           WAR ROOM BIDDING BOARD
         </h3>
         <span className="text-[11px] text-slate-500 font-mono font-bold">
-          {teams.length} TEAMS ACTIVE
+          {teams.length} {gameMode === 'multiplayer' ? 'FRANCHISES' : 'TEAMS ACTIVE'}
         </span>
       </div>
 
@@ -52,6 +53,7 @@ export const LiveBiddingBoard: React.FC = () => {
         {teams.map((team) => {
           const isHighestBidder = auction.highestBidderId === team.id;
           const isUser = team.id === activeTeamId;
+          const isHumanTeam = humanTeamIds.has(team.id);
           const banterList = AI_BANTER[team.id] || ['Target locked in!'];
           const banter = banterList[auction.bidHistory.length % banterList.length];
 
@@ -87,7 +89,11 @@ export const LiveBiddingBoard: React.FC = () => {
 
                 {/* Status Pill: Current Bid or Squad Count */}
                 <div className="text-right flex-shrink-0">
-                  {isHighestBidder ? (
+                  {gameMode === 'multiplayer' && !isHumanTeam ? (
+                    <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">
+                      NOT IN ROOM
+                    </span>
+                  ) : isHighestBidder ? (
                     <div className="flex flex-col items-end">
                       <span className="text-amber-700 font-black text-xs font-mono">
                         ₹{auction.currentBid.toFixed(2)} Cr

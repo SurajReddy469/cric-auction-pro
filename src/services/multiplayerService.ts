@@ -26,6 +26,7 @@ class MultiplayerService {
   private pendingRoomResponse: { resolve: (ok: boolean) => void; timer: ReturnType<typeof setTimeout> } | null = null;
   public pingMs: number = 0;
   public connectionStatus: 'disconnected' | 'connecting' | 'connected' = 'disconnected';
+  public lastTeamConflictNotice: { requestedTeamId: string; claimedByName: string } | null = null;
 
   private roomListeners = new Set<RoomListener>();
   private auctionSyncListeners = new Set<AuctionSyncListener>();
@@ -105,6 +106,14 @@ class MultiplayerService {
 
   public getCurrentRoom(): MultiplayerRoomState | null {
     return this.currentRoom;
+  }
+
+  public getTeamConflictNotice(): { requestedTeamId: string; claimedByName: string } | null {
+    return this.lastTeamConflictNotice;
+  }
+
+  public clearTeamConflictNotice() {
+    this.lastTeamConflictNotice = null;
   }
 
   public connect(): Promise<boolean> {
@@ -198,10 +207,21 @@ class MultiplayerService {
   private handleServerMessage(message: MultiplayerServerEvent) {
     switch (message.type) {
       case 'ROOM_CREATED':
+        this.resolvePendingRoomResponse(true);
+        this.currentRoom = message.payload.room;
+        this.myParticipantId = message.payload.myParticipantId;
+        this.lastTeamConflictNotice = null;
+        if (typeof localStorage !== 'undefined' && this.myParticipantId) {
+          localStorage.setItem('cric_mp_player_id', this.myParticipantId);
+        }
+        this.roomListeners.forEach(l => l(message.payload.room));
+        break;
+
       case 'ROOM_JOINED':
         this.resolvePendingRoomResponse(true);
         this.currentRoom = message.payload.room;
         this.myParticipantId = message.payload.myParticipantId;
+        this.lastTeamConflictNotice = message.payload.teamConflictNotice || null;
         if (typeof localStorage !== 'undefined' && this.myParticipantId) {
           localStorage.setItem('cric_mp_player_id', this.myParticipantId);
         }
