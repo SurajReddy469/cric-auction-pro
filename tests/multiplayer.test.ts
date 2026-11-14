@@ -1,8 +1,14 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { WebSocket } from 'ws';
+import { spawn, ChildProcess } from 'child_process';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { useGameStore } from '../src/store/useGameStore';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const SERVER_URL = `ws://localhost:${process.env.TEST_MULTIPLAYER_PORT || 5175}`;
+let serverProcess: ChildProcess | null = null;
 
 // Helper to create a connected WebSocket client with message promise resolver
 function createClient(name: string): Promise<{
@@ -69,6 +75,20 @@ describe('Multiplayer Human-Only System', () => {
   let guestParticipantId: string;
 
   beforeAll(async () => {
+    const isRunning = await new Promise<boolean>((resolve) => {
+      const probe = new WebSocket(SERVER_URL);
+      probe.on('open', () => { probe.close(); resolve(true); });
+      probe.on('error', () => { resolve(false); });
+    });
+
+    if (!isRunning) {
+      serverProcess = spawn('node', [path.resolve(__dirname, '../server/multiplayerServer.js')], {
+        stdio: 'ignore',
+        env: { ...process.env, PORT: '5175' }
+      });
+      await new Promise(r => setTimeout(r, 700));
+    }
+
     hostClient = await createClient('Host');
     guestClient = await createClient('Guest');
     additionalClients = await Promise.all(
@@ -80,6 +100,9 @@ describe('Multiplayer Human-Only System', () => {
     hostClient?.close();
     guestClient?.close();
     additionalClients.forEach((client) => client.close());
+    if (serverProcess) {
+      serverProcess.kill();
+    }
   });
 
   it('1. Host creates a room with zero bots and strictly human-only configuration', async () => {
