@@ -5,6 +5,8 @@ import { TeamBadge } from '../common/TeamBadge';
 import { soundService } from '../../services/soundService';
 import { Player, PlayerRole, BattingHand, BowlingStyle, PlayerTier } from '../../types/player';
 import { AIPersonality } from '../../types/team';
+import type { GameScreen } from '../../store/useGameStore';
+import type { SessionFormat } from '../../types/session';
 import { 
   Coins, 
   Search, 
@@ -30,10 +32,20 @@ import {
   Bell,
   UserCircle2,
   ChevronRight,
-  ShieldCheck
+  ShieldCheck,
+  Settings2,
+  Gamepad2,
+  Layers,
+  Medal,
+  Play,
+  Pause,
+  SkipForward,
+  Plus,
+  Trash2,
+  SlidersHorizontal
 } from 'lucide-react';
 
-type AdminTab = 'cheats' | 'teams' | 'players' | 'auction' | 'tournament' | 'backup';
+type AdminTab = 'cheats' | 'controls' | 'sessions' | 'teams' | 'players' | 'auction' | 'tournament' | 'career' | 'backup';
 
 interface AdminPanelProps {
   standalone?: boolean;
@@ -47,9 +59,34 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ standalone = false }) =>
     auction,
     leagueMatches,
     currentMatchIndex,
+    championTeam,
     profile,
     achievements,
+    settings,
+    gameMode,
+    currentScreen,
+    sessions,
+    activeSessionId,
+    multiplayerRoom,
     setScreen,
+    setGameMode,
+    updateSettings,
+    setDataset,
+    selectTeam,
+    createSession,
+    switchSession,
+    deleteSession,
+    duplicateSession,
+    startAuction,
+    nextAuctionPlayer,
+    adminToggleAuctionPause,
+    adminUpdateAuction,
+    startSeason,
+    simulateNextMatch,
+    simulateAllLeagueMatches,
+    progressPlayoffs,
+    startNextSeason,
+    leaveMultiplayerRoom,
     adminUpdateTeamPurse,
     adminUpdateTeamPersonality,
     adminUpdateTeamTrophies,
@@ -59,6 +96,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ standalone = false }) =>
     adminCreatePlayer,
     adminAddScoutTokens,
     adminUnlockAllAchievements,
+    adminUpdateProfile,
+    adminUpdateAchievement,
     adminForceSellCurrentLot,
     adminForceUnsoldCurrentLot,
     adminJumpToLot,
@@ -104,6 +143,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ standalone = false }) =>
   const [selectedTeamRosterId, setSelectedTeamRosterId] = useState<string | null>(teams[0]?.id || null);
   const [isEditingSelectedTeam, setIsEditingSelectedTeam] = useState(false);
   const [isSelectedSquadExpanded, setIsSelectedSquadExpanded] = useState(false);
+  const [sessionName, setSessionName] = useState('Commissioner Session');
+  const [sessionFormat, setSessionFormat] = useState<SessionFormat>('mega');
+  const [sessionPurse, setSessionPurse] = useState(120);
+  const [sessionYear, setSessionYear] = useState(2026);
 
   const userTeam = teams.find(t => t.id === userTeamId) || teams[0];
   const selectedTeam = teams.find(t => t.id === selectedTeamRosterId) || teams[0];
@@ -112,6 +155,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ standalone = false }) =>
     cheats: {
       title: 'Commissioner Overview',
       description: 'Campaign health, quick controls, and commissioner actions.'
+    },
+    controls: {
+      title: 'Game Controls',
+      description: 'Manage game settings, navigation, game mode, and the active campaign.'
+    },
+    sessions: {
+      title: 'Session Management',
+      description: 'Create, switch, duplicate, and remove complete game campaigns.'
     },
     teams: {
       title: 'Franchise Operations',
@@ -129,6 +180,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ standalone = false }) =>
       title: 'Tournament Operations',
       description: 'Review fixtures and apply commissioner match controls.'
     },
+    career: {
+      title: 'Career & Achievements',
+      description: 'Edit manager records, reputation, scouting resources, and achievement progress.'
+    },
     backup: {
       title: 'Data & Backups',
       description: 'Export a campaign snapshot or restore a saved state.'
@@ -137,6 +192,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ standalone = false }) =>
 
   const navGroups: { label: string; items: { id: AdminTab; label: string; icon: React.ComponentType<{ className?: string }> }[] }[] = [
     { label: 'WORKSPACE', items: [{ id: 'cheats', label: 'Overview', icon: Home }] },
+    { label: 'GAME CONTROL', items: [{ id: 'controls', label: 'Game Controls', icon: Settings2 }, { id: 'sessions', label: 'Sessions', icon: Layers }] },
     {
       label: 'MANAGEMENT',
       items: [
@@ -146,6 +202,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ standalone = false }) =>
         { id: 'tournament', label: 'Tournament', icon: CalendarDays }
       ]
     },
+    { label: 'CAREER', items: [{ id: 'career', label: 'Career & Achievements', icon: Medal }] },
     { label: 'SYSTEM', items: [{ id: 'backup', label: 'Data & Backups', icon: Database }] }
   ];
 
@@ -571,6 +628,141 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ standalone = false }) =>
                 ⚠️ FACTORY RESET DATA
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'controls' && (
+        <div className="space-y-5">
+          <div className="grid gap-4 xl:grid-cols-2">
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="mb-4 flex items-center gap-2">
+                <Gamepad2 className="h-4 w-4 text-amber-700" />
+                <h2 className="text-sm font-black text-slate-900">Live game state</h2>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Game mode
+                  <select value={gameMode} onChange={event => {
+                    const nextMode = event.target.value as 'singleplayer' | 'multiplayer';
+                    if (nextMode === 'singleplayer' || multiplayerRoom) setGameMode(nextMode);
+                  }} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold normal-case text-slate-800">
+                    <option value="singleplayer">Single-player with AI</option>
+                    <option value="multiplayer" disabled={!multiplayerRoom && gameMode !== 'multiplayer'}>Multiplayer room</option>
+                  </select>
+                </label>
+                <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Game screen
+                  <select value={currentScreen} onChange={event => setScreen(event.target.value as GameScreen)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold normal-case text-slate-800">
+                    {(['start', 'menu', 'teams', 'auction', 'squad', 'season', 'admin', 'multiplayer_lobby'] as GameScreen[]).map(screen => <option key={screen} value={screen}>{screen.replace('_', ' ')}</option>)}
+                  </select>
+                </label>
+                <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:col-span-2">Managed franchise
+                  <select value={userTeamId} onChange={event => selectTeam(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold normal-case text-slate-800">
+                    {teams.map(team => <option key={team.id} value={team.id}>{team.name}</option>)}
+                  </select>
+                </label>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button type="button" onClick={() => setScreen('auction')} className="rounded-xl bg-amber-500 px-3 py-2 text-[10px] font-black text-slate-950">Open auction</button>
+                <button type="button" onClick={() => setScreen('season')} className="rounded-xl bg-slate-100 px-3 py-2 text-[10px] font-black text-slate-700">Open season</button>
+                {multiplayerRoom && <button type="button" onClick={() => { if (window.confirm('Leave the current multiplayer room?')) leaveMultiplayerRoom(); }} className="rounded-xl bg-rose-100 px-3 py-2 text-[10px] font-black text-rose-800">Leave multiplayer room</button>}
+              </div>
+              <p className="mt-3 text-[10px] text-slate-500">{multiplayerRoom ? `Room ${multiplayerRoom.roomCode} is connected; its auction clock and bids are managed by the room server.` : 'No multiplayer room is connected.'}</p>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="mb-4 flex items-center gap-2">
+                <SlidersHorizontal className="h-4 w-4 text-amber-700" />
+                <h2 className="text-sm font-black text-slate-900">Game settings</h2>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Color mode
+                  <select value={settings.theme} onChange={event => updateSettings({ theme: event.target.value as 'day' | 'night' })} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold normal-case text-slate-800">
+                    <option value="day">Day mode</option><option value="night">Night mode</option>
+                  </select>
+                </label>
+                <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Auction timer speed
+                  <select value={settings.timerSpeed} onChange={event => updateSettings({ timerSpeed: event.target.value as 'slow' | 'standard' | 'fast' })} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold normal-case text-slate-800">
+                    <option value="slow">Slow</option><option value="standard">Standard</option><option value="fast">Fast</option>
+                  </select>
+                </label>
+                <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">AI aggression
+                  <select value={settings.aiAggression} onChange={event => updateSettings({ aiAggression: event.target.value as 'balanced' | 'ruthless' | 'chill' })} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold normal-case text-slate-800">
+                    <option value="chill">Chill</option><option value="balanced">Balanced</option><option value="ruthless">Ruthless</option>
+                  </select>
+                </label>
+                <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Starting purse (Cr)
+                  <input type="number" min="0" step="0.5" value={settings.startingPurse} onChange={event => updateSettings({ startingPurse: Math.max(0, Number(event.target.value)) })} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold normal-case text-slate-800" />
+                </label>
+                <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Player and team dataset
+                  <select value={settings.dataset} onChange={event => {
+                    const dataset = event.target.value as 'real' | 'fictional';
+                    if (dataset !== settings.dataset && window.confirm('Changing the dataset replaces the current teams, players, and auction state. Continue?')) setDataset(dataset);
+                  }} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold normal-case text-slate-800">
+                    <option value="real">Real IPL</option><option value="fictional">Fictional</option>
+                  </select>
+                </label>
+                <label className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2 text-[10px] font-bold text-slate-600">Sound effects
+                  <input type="checkbox" checked={settings.soundEnabled} onChange={event => updateSettings({ soundEnabled: event.target.checked })} className="h-4 w-4 accent-amber-500" />
+                </label>
+              </div>
+              <p className="mt-3 text-[10px] text-slate-500">Starting purse applies to newly created sessions. Existing franchise purses are edited under Franchises.</p>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-center gap-2"><Settings2 className="h-4 w-4 text-amber-700" /><h2 className="text-sm font-black text-slate-900">Auction runtime</h2></div>
+            <div className="flex flex-wrap items-end gap-2">
+              {auction.phase === 'idle' || auction.phase === 'completed' ? (
+                <button type="button" onClick={() => startAuction()} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-[10px] font-black text-white"><Play className="h-3.5 w-3.5" />Start auction</button>
+              ) : (
+                <>
+                  <button type="button" onClick={adminToggleAuctionPause} className="inline-flex items-center gap-1.5 rounded-xl bg-amber-100 px-3 py-2 text-[10px] font-black text-amber-900">{auction.isPaused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}{auction.isPaused ? 'Resume clock' : 'Pause clock'}</button>
+                  <button type="button" onClick={() => nextAuctionPlayer()} className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-2 text-[10px] font-black text-slate-800"><SkipForward className="h-3.5 w-3.5" />Next lot</button>
+                  <label className="text-[10px] font-bold text-slate-500">Clock seconds
+                    <input type="number" min="0" max="99" value={auction.timerSeconds} onChange={event => adminUpdateAuction({ timerSeconds: Math.max(0, Number(event.target.value)) })} className="ml-2 w-20 rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-900" />
+                  </label>
+                </>
+              )}
+              <button type="button" onClick={() => { if (window.confirm('Simulate every remaining auction lot?')) autoCompleteAuction(); }} className="rounded-xl bg-slate-900 px-3 py-2 text-[10px] font-black text-white">Auto-complete auction</button>
+              <span className="ml-auto text-[10px] font-bold uppercase text-slate-500">{auction.phase.replace('_', ' ')}{auction.currentPlayer ? ` · ${auction.currentPlayer.name}` : ''}</span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-rose-200 bg-rose-50 p-5">
+            <div><h2 className="text-sm font-black text-rose-950">Reset game data</h2><p className="mt-1 text-[10px] text-rose-800">Clear saved teams, players, sessions, settings, and career progress on this browser.</p></div>
+            <button type="button" onClick={() => { if (window.confirm('Permanently reset all saved game data in this browser?')) resetAllGameData(); }} className="rounded-xl bg-rose-700 px-4 py-2.5 text-[10px] font-black text-white">Reset all data</button>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'sessions' && (
+        <div className="space-y-5">
+          <form onSubmit={event => {
+            event.preventDefault();
+            if (!sessionName.trim()) return;
+            createSession({ name: sessionName.trim(), format: sessionFormat, purseCap: sessionPurse, seasonYear: sessionYear, aiAggression: settings.aiAggression, timerSpeed: settings.timerSpeed, preSelectedTeamId: userTeamId });
+            setSessionName(`Commissioner Session ${sessions.length + 1}`);
+          }} className="grid gap-3 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2 xl:grid-cols-5">
+            <label className="text-[10px] font-bold uppercase text-slate-500 xl:col-span-2">Session name<input required value={sessionName} onChange={event => setSessionName(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold normal-case text-slate-900" /></label>
+            <label className="text-[10px] font-bold uppercase text-slate-500">Format<select value={sessionFormat} onChange={event => setSessionFormat(event.target.value as SessionFormat)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold normal-case text-slate-900"><option value="mega">Mega</option><option value="mini">Mini</option><option value="turbo">Turbo</option><option value="custom">Custom</option></select></label>
+            <label className="text-[10px] font-bold uppercase text-slate-500">Purse cap (Cr)<input type="number" min="1" value={sessionPurse} onChange={event => setSessionPurse(Math.max(1, Number(event.target.value)))} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold normal-case text-slate-900" /></label>
+            <label className="text-[10px] font-bold uppercase text-slate-500">Season year<input type="number" min="2000" max="2100" value={sessionYear} onChange={event => setSessionYear(Number(event.target.value))} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold normal-case text-slate-900" /></label>
+            <button type="submit" className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2.5 text-[10px] font-black text-slate-950 sm:col-span-2 xl:col-span-5"><Plus className="h-3.5 w-3.5" />Create campaign session</button>
+          </form>
+
+          <div className="grid gap-3 xl:grid-cols-2">
+            {sessions.map(session => (
+              <article key={session.id} className={`rounded-3xl border bg-white p-5 shadow-sm ${session.id === activeSessionId ? 'border-amber-300 ring-2 ring-amber-100' : 'border-slate-200'}`}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div><div className="flex items-center gap-2"><h2 className="text-sm font-black text-slate-900">{session.name}</h2>{session.id === activeSessionId && <span className="rounded-full bg-emerald-100 px-2 py-1 text-[8px] font-black uppercase text-emerald-800">Active</span>}</div><p className="mt-1 text-[10px] text-slate-500">{session.seasonYear} · {session.format} · ₹{session.purseCap} Cr · Room {session.roomCode}</p><p className="mt-1 text-[10px] text-slate-500">{session.teams.length} franchises · {session.players.length} players · {session.currentMatchIndex}/{session.leagueMatches.length} matches played</p></div>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {session.id !== activeSessionId && <button type="button" onClick={() => switchSession(session.id)} className="rounded-lg bg-amber-100 px-3 py-2 text-[9px] font-black text-amber-900">Switch to session</button>}
+                    <button type="button" onClick={() => duplicateSession(session.id)} className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-3 py-2 text-[9px] font-black text-slate-700"><Copy className="h-3 w-3" />Duplicate</button>
+                    {sessions.length > 1 && <button type="button" onClick={() => { if (window.confirm(`Delete “${session.name}” and its saved campaign?`)) deleteSession(session.id); }} className="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-3 py-2 text-[9px] font-black text-rose-800"><Trash2 className="h-3 w-3" />Delete</button>}
+                  </div>
+              </article>
+            ))}
           </div>
         </div>
       )}
@@ -1199,6 +1391,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ standalone = false }) =>
                 🏆 Crown {userTeam.shortName} Champions
               </button>
             </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {leagueMatches.length === 0 ? (
+                <button type="button" onClick={() => startSeason()} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-[10px] font-black text-white"><Play className="h-3.5 w-3.5" />Start season</button>
+              ) : (
+                <>
+                  <button type="button" disabled={currentMatchIndex >= leagueMatches.length} onClick={() => simulateNextMatch()} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-[10px] font-black text-white disabled:cursor-not-allowed disabled:opacity-40"><SkipForward className="h-3.5 w-3.5" />Simulate next</button>
+                  <button type="button" onClick={() => { if (window.confirm('Simulate all remaining league matches and playoffs?')) simulateAllLeagueMatches(); }} className="rounded-xl bg-slate-900 px-3 py-2 text-[10px] font-black text-white">Simulate season</button>
+                  {currentMatchIndex >= leagueMatches.length && <button type="button" onClick={() => progressPlayoffs()} className="rounded-xl bg-violet-100 px-3 py-2 text-[10px] font-black text-violet-900">Resolve playoffs</button>}
+                  {championTeam && <button type="button" onClick={() => { if (window.confirm('Advance the career to the next season?')) startNextSeason(); }} className="rounded-xl bg-sky-100 px-3 py-2 text-[10px] font-black text-sky-900">Start next season</button>}
+                </>
+              )}
+              <button type="button" onClick={() => { if (window.confirm('Replace the current fixture list with a new season schedule?')) startSeason(); }} className="rounded-xl bg-slate-100 px-3 py-2 text-[10px] font-black text-slate-700">Reset schedule</button>
+            </div>
           </div>
 
           {/* Fixtures List with Instant Force Winner */}
@@ -1249,6 +1454,58 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ standalone = false }) =>
         </div>
       )}
 
+      {activeTab === 'career' && (
+        <div className="space-y-5">
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div><h2 className="text-sm font-black text-slate-900">Manager profile</h2><p className="mt-1 text-[10px] text-slate-500">All career counters and the manager identity can be edited directly.</p></div>
+              <button type="button" onClick={() => adminAddScoutTokens(10)} className="rounded-xl bg-amber-100 px-3 py-2 text-[10px] font-black text-amber-900">Add 10 scout tokens</button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <label className="text-[10px] font-bold uppercase text-slate-500 xl:col-span-2">Manager name<input value={profile.name} onChange={event => adminUpdateProfile({ name: event.target.value })} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold normal-case text-slate-900" /></label>
+              {([
+                ['Reputation', 'reputation', 0, 100, 1],
+                ['Seasons', 'totalSeasons', 0, 999, 1],
+                ['Trophies', 'trophies', 0, 9999, 1],
+                ['Matches played', 'matchesPlayed', 0, 99999, 1],
+                ['Matches won', 'matchesWon', 0, 99999, 1],
+                ['Auction wins', 'auctionWins', 0, 99999, 1],
+                ['Total spent (Cr)', 'totalSpent', 0, 999999, 0.5],
+                ['Win rate (%)', 'winRate', 0, 100, 0.1],
+                ['Scout tokens', 'scoutTokens', 0, 99999, 1],
+              ] as const).map(([label, field, min, max, step]) => (
+                <label key={field} className="text-[10px] font-bold uppercase text-slate-500">{label}<input type="number" min={min} max={max} step={step} value={profile[field]} onChange={event => adminUpdateProfile({ [field]: Math.min(max, Math.max(min, Number(event.target.value))) })} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold normal-case text-slate-900" /></label>
+              ))}
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+              <div><h2 className="text-sm font-black text-slate-900">Achievement control</h2><p className="mt-1 text-[10px] text-slate-500">Unlock or relock any achievement and edit its progress value.</p></div>
+              <button type="button" onClick={() => adminUnlockAllAchievements()} className="rounded-xl bg-amber-500 px-3 py-2 text-[10px] font-black text-slate-950">Unlock all achievements</button>
+            </div>
+            <div className="divide-y divide-slate-100">
+              {achievements.map(achievement => (
+                <div key={achievement.id} className="grid gap-3 px-5 py-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+                  <div className="flex items-start gap-3">
+                    <span className="text-xl" aria-hidden="true">{achievement.icon}</span>
+                    <div><h3 className="text-xs font-black text-slate-900">{achievement.title}</h3><p className="mt-1 text-[10px] text-slate-500">{achievement.description} · {achievement.category}</p><p className="mt-1 text-[9px] text-slate-400">{achievement.unlocked ? `Unlocked ${achievement.unlockedAt || ''}` : 'Locked'}</p></div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {achievement.progress && <>
+                      <label className="text-[9px] font-bold text-slate-500">Progress <input type="number" min="0" value={achievement.progress.current} onChange={event => adminUpdateAchievement(achievement.id, { progress: { ...achievement.progress!, current: Math.max(0, Number(event.target.value)) } })} className="ml-1 w-16 rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-900" /></label>
+                      <span className="text-[9px] text-slate-400">of</span>
+                      <input aria-label={`${achievement.title} progress target`} type="number" min="1" value={achievement.progress.max} onChange={event => adminUpdateAchievement(achievement.id, { progress: { ...achievement.progress!, max: Math.max(1, Number(event.target.value)) } })} className="w-16 rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-900" />
+                    </>}
+                    <label className="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 px-2.5 py-2 text-[9px] font-black text-slate-700"><input type="checkbox" checked={achievement.unlocked} onChange={event => adminUpdateAchievement(achievement.id, { unlocked: event.target.checked, unlockedAt: event.target.checked ? achievement.unlockedAt || new Date().toLocaleDateString() : undefined })} className="h-3.5 w-3.5 accent-amber-500" />Unlocked</label>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* TAB 6: BACKUP / EXPORT / IMPORT */}
       {activeTab === 'backup' && (
         <div className="space-y-6">
@@ -1262,7 +1519,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ standalone = false }) =>
                 </div>
                 <h3 className="text-lg font-black text-slate-900">Export Game Save JSON</h3>
                 <p className="text-xs text-slate-500 mt-1">
-                  Download or copy your complete campaign state (all 10 franchises, rosters, budgets, live auction lots, fixtures, and profile).
+                  Download or copy the full campaign snapshot: franchises, players, auction, season results, settings, profile, achievements, and saved sessions.
                 </p>
 
                 <div className="mt-4">

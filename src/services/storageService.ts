@@ -2,7 +2,7 @@ import { ManagerProfile, Achievement } from '../types/career';
 import { Team } from '../types/team';
 import { Player } from '../types/player';
 import { AuctionState } from '../types/auction';
-import { Match, LeagueStanding, PlayoffStage } from '../types/season';
+import { Match, LeagueStanding, PlayoffStage, SeasonAwards } from '../types/season';
 import { IPLSession } from '../types/session';
 
 const PROFILE_KEY = 'cric_auction_manager_profile';
@@ -62,6 +62,8 @@ export interface SavedCampaign {
   standings: LeagueStanding[];
   playoffMatches: Match[];
   playoffStage: PlayoffStage;
+  championTeam?: Team | null;
+  seasonAwards?: SeasonAwards | null;
   currentScreen?: string;
   timestamp: number;
 }
@@ -112,7 +114,7 @@ export class StorageService {
         const stored: Achievement[] = JSON.parse(data);
         return initialAchievements.map(init => {
           const found = stored.find(s => s.id === init.id);
-          return found ? { ...init, unlocked: found.unlocked, unlockedAt: found.unlockedAt } : init;
+          return found ? { ...init, ...found } : init;
         });
       }
     } catch (e) {

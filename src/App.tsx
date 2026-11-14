@@ -17,6 +17,7 @@ import { DisconnectPauseOverlay } from './components/multiplayer/DisconnectPause
 
 export const App: React.FC = () => {
   const { currentScreen, joinMultiplayerRoom, multiplayerRoom } = useGameStore();
+  const isEmbeddedAdmin = new URLSearchParams(window.location.search).get('embeddedAdmin') === '1';
 
   // Seamless Page Reload/F5 Session Restoration
   useEffect(() => {
@@ -42,7 +43,7 @@ export const App: React.FC = () => {
       case 'season':
         return <SeasonHub />;
       case 'admin':
-        return <AdminPanel />;
+        return <AdminPanel standalone={isEmbeddedAdmin} />;
       case 'multiplayer_lobby':
         return <MultiplayerLobby />;
       default:
@@ -52,7 +53,7 @@ export const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#f4f7fb] text-slate-900 dark:bg-slate-950 dark:text-slate-100 flex flex-col font-sans selection:bg-amber-400 selection:text-slate-950">
-      <Navbar />
+      {!isEmbeddedAdmin && <Navbar />}
       <main className="flex-1 w-full">
         {renderScreen()}
       </main>

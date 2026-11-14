@@ -6,6 +6,10 @@ import { ExternalLink, Gavel } from 'lucide-react';
 export const AdminApp: React.FC = () => {
   const { profile, auction } = useGameStore();
   const isAuctionLive = auction.phase !== 'idle' && auction.phase !== 'completed';
+  const isLocalDev = import.meta.env.DEV && ['localhost', '127.0.0.1'].includes(window.location.hostname) && window.location.port === '5174';
+  const gameAdminUrl = isLocalDev
+    ? `${window.location.protocol}//${window.location.hostname}:5173/?screen=admin&embeddedAdmin=1`
+    : `${window.location.origin}/?screen=admin`;
 
   return (
     <div className="admin-day min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-between">
@@ -25,11 +29,11 @@ export const AdminApp: React.FC = () => {
           <div className="flex flex-wrap items-center justify-end gap-2">
             <span className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-[9px] font-black uppercase tracking-wide ${isAuctionLive ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
               <span className={`h-2 w-2 rounded-full ${isAuctionLive ? 'animate-pulse bg-emerald-500' : 'bg-slate-400'}`} />
-              {isAuctionLive ? 'Auction Live' : 'Auction Standby'}
+              {isLocalDev ? 'Linked Game Controls' : isAuctionLive ? 'Auction Live' : 'Auction Standby'}
             </span>
-            <span className="hidden max-w-36 truncate rounded-xl border border-slate-200 px-3 py-2 text-[10px] font-bold text-slate-600 sm:inline-flex">{profile.name}</span>
+            <span className="hidden max-w-36 truncate rounded-xl border border-slate-200 px-3 py-2 text-[10px] font-bold text-slate-600 sm:inline-flex">{isLocalDev ? 'Live game session' : profile.name}</span>
             <a
-              href="https://lbs-poultry-shopping-buyers.trycloudflare.com"
+              href={gameAdminUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 rounded-xl bg-amber-500 px-3 py-2 text-[10px] font-black text-slate-950 shadow-sm transition hover:bg-amber-400"
@@ -42,7 +46,11 @@ export const AdminApp: React.FC = () => {
       </header>
 
       <main className="w-full flex-1">
-        <AdminPanel standalone />
+        {isLocalDev ? (
+          <iframe title="Live game commissioner controls" src={gameAdminUrl} className="block w-full border-0" style={{ minHeight: 'calc(100vh - 76px)' }} />
+        ) : (
+          <AdminPanel standalone />
+        )}
       </main>
 
       <footer className="text-center text-xs text-slate-500 py-3 border-t border-slate-200">

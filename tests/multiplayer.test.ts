@@ -244,6 +244,133 @@ describe('Multiplayer Human-Only System', () => {
     expect(guestAuctionSync.payload.auctionState.currentPlayer).toBeDefined();
   });
 
+  it('keeps all franchises visible when only two humans participate', async () => {
+    const displayRoomCode = `T${Math.floor(100000 + Math.random() * 900000)}`;
+    const [twoPlayerHost, twoPlayerGuest] = await Promise.all([
+      createClient('Two-player host'),
+      createClient('Two-player guest'),
+    ]);
+
+    try {
+      twoPlayerHost.send({
+        type: 'CREATE_ROOM',
+        payload: {
+          roomName: 'Two-player display test',
+          roomCode: displayRoomCode,
+          playerName: 'MI Manager',
+          hostTeamId: 'mumbai-indians',
+          requiredPlayers: 2,
+          maxParticipants: 2,
+          purseCap: 120,
+        },
+      });
+
+      await twoPlayerHost.waitForMessage(
+        (message) => message.type === 'ROOM_CREATED' && message.payload.room?.roomCode === displayRoomCode
+      );
+
+      twoPlayerGuest.send({
+        type: 'JOIN_ROOM',
+        payload: {
+          roomCode: displayRoomCode,
+          playerName: 'SRH Manager',
+          teamId: 'sunrisers-hyderabad',
+        },
+      });
+      await twoPlayerGuest.waitForMessage((message) => message.type === 'ROOM_JOINED');
+
+      twoPlayerHost.send({ type: 'TOGGLE_READY', payload: {} });
+      twoPlayerGuest.send({ type: 'TOGGLE_READY', payload: {} });
+      await twoPlayerHost.waitForMessage(
+        (message) => message.type === 'ROOM_UPDATED' && message.payload.room?.participants.every(
+          (participant: any) => participant.isReady && participant.teamId
+        )
+      );
+
+      twoPlayerHost.send({ type: 'START_AUCTION', payload: {} });
+      const auctionSync = await twoPlayerHost.waitForMessage(
+        (message) => message.type === 'AUCTION_SYNC' && message.payload.teams?.length === 10
+      );
+
+      expect(auctionSync.payload.teams.map((team: any) => team.id)).toContain('chennai-super-kings');
+      expect(auctionSync.payload.teams.map((team: any) => team.id)).toContain('mumbai-indians');
+      expect(auctionSync.payload.teams.map((team: any) => team.id)).toContain('sunrisers-hyderabad');
+      expect(auctionSync.payload.teams).toHaveLength(10);
+    } finally {
+      twoPlayerHost.close();
+      twoPlayerGuest.close();
+    }
+  });
+
+  it('notifies joining participant if requested franchise is already claimed and leaves team unassigned', async () => {
+    const conflictRoomCode = `C${Math.floor(100000 + Math.random() * 900000)}`;
+    const [conflictHost, conflictGuest] = await Promise.all([
+      createClient('Conflict Host'),
+      createClient('Conflict Guest'),
+    ]);
+
+    try {
+      conflictHost.send({
+        type: 'CREATE_ROOM',
+        payload: {
+          roomName: 'Conflict Test Room',
+          roomCode: conflictRoomCode,
+          playerName: 'Alpha Manager',
+          hostTeamId: 'mumbai-indians',
+          requiredPlayers: 2,
+          maxParticipants: 4,
+          purseCap: 120,
+        },
+      });
+
+      await conflictHost.waitForMessage(
+        (m) => m.type === 'ROOM_CREATED' && m.payload.room?.roomCode === conflictRoomCode
+      );
+
+      // Guest attempts to join with mumbai-indians which is already taken by Alpha Manager
+      conflictGuest.send({
+        type: 'JOIN_ROOM',
+        payload: {
+          roomCode: conflictRoomCode,
+          playerName: 'Beta Manager',
+          teamId: 'mumbai-indians',
+        },
+      });
+
+      const joinedMsg = await conflictGuest.waitForMessage(
+        (m) => m.type === 'ROOM_JOINED'
+      );
+
+      expect(joinedMsg.payload.teamConflictNotice).toBeDefined();
+      expect(joinedMsg.payload.teamConflictNotice.requestedTeamId).toBe('mumbai-indians');
+      expect(joinedMsg.payload.teamConflictNotice.claimedByName).toBe('Alpha Manager');
+
+      // The guest participant's teamId must be null (unallocated)
+      const myParticipant = joinedMsg.payload.room.participants.find(
+        (p: any) => p.id === joinedMsg.payload.myParticipantId
+      );
+      expect(myParticipant.teamId).toBeNull();
+
+      // Guest can now claim an available franchise
+      conflictGuest.send({
+        type: 'CLAIM_TEAM',
+        payload: {
+          teamId: 'royal-challengers-bengaluru',
+        },
+      });
+
+      const updatedMsg = await conflictGuest.waitForMessage(
+        (m) => m.type === 'ROOM_UPDATED' && m.payload.room.participants.some(
+          (p: any) => p.id === joinedMsg.payload.myParticipantId && p.teamId === 'royal-challengers-bengaluru'
+        )
+      );
+      expect(updatedMsg).toBeDefined();
+    } finally {
+      conflictHost.close();
+      conflictGuest.close();
+    }
+  });
+
   it('5. Human-only bidding synchronizes across players and resets the countdown timer', async () => {
     // Host places bid of 2.50 Cr
     hostClient.send({

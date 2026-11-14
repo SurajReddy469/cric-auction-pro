@@ -62,6 +62,8 @@ export interface GameStoreState {
   toggleMultiplayerReady: () => void;
   startMultiplayerAuction: () => void;
   leaveMultiplayerRoom: () => void;
+  teamConflictNotice: { requestedTeamId: string; claimedByName: string } | null;
+  clearTeamConflictNotice: () => void;
 
   // Navigation
   currentScreen: GameScreen;
@@ -90,7 +92,9 @@ export interface GameStoreState {
   // Career & Profile
   profile: ManagerProfile;
   setManagerProfile: (name: string) => void;
+  adminUpdateProfile: (updates: Partial<ManagerProfile>) => void;
   achievements: Achievement[];
+  adminUpdateAchievement: (achievementId: string, updates: Partial<Achievement>) => void;
   settings: GameSettings;
 
   // Modals
@@ -165,6 +169,8 @@ export interface GameStoreState {
   adminForceSellCurrentLot: (teamId: string, price: number) => void;
   adminForceUnsoldCurrentLot: () => void;
   adminJumpToLot: (lotIndex: number) => void;
+  adminUpdateAuction: (updates: Partial<AuctionState>) => void;
+  adminToggleAuctionPause: () => void;
   adminForceMatchResult: (matchId: string, winnerTeamId: string, margin?: string) => void;
   adminForceCrownChampion: (teamId: string) => void;
   adminExportState: () => string;
@@ -195,7 +201,9 @@ const initialDatasetMode = initialSettings.dataset || 'real';
 const fallbackTeams = initialDatasetMode === 'fictional' ? FICTIONAL_TEAMS : INITIAL_TEAMS;
 const fallbackPlayers = initialDatasetMode === 'fictional' ? FICTIONAL_PLAYERS : INITIAL_PLAYERS;
 
-const initialTeamsSource = savedCampaign?.teams || fallbackTeams;
+const initialTeamsSource = (savedCampaign?.teams && savedCampaign.teams.length >= 10) 
+  ? savedCampaign.teams 
+  : fallbackTeams;
 const initialPlayersSource = savedCampaign?.players || fallbackPlayers;
 const initialUserTeamId = savedCampaign?.userTeamId || initialTeamsSource[0]?.id || 'chennai-super-kings';
 
@@ -243,6 +251,9 @@ const activeSessionCandidate = initialSessionsList.find(s => s.id === savedActiv
 
 const initialScreen: GameScreen = (() => {
   if (typeof window === 'undefined') return 'start';
+  const requestedScreen = new URLSearchParams(window.location.search).get('screen');
+  const validScreens: GameScreen[] = ['start', 'menu', 'teams', 'auction', 'squad', 'season', 'admin', 'multiplayer_lobby'];
+  if (requestedScreen && validScreens.includes(requestedScreen as GameScreen)) return requestedScreen as GameScreen;
   const activeMp = StorageService.loadActiveMultiplayerSession();
   if (activeMp?.roomCode) {
     return 'multiplayer_lobby';
@@ -264,6 +275,17 @@ const initialScreen: GameScreen = (() => {
 })();
 
 export const useGameStore = create<GameStoreState>((set, get) => {
+  const notifyOtherTabs = (payload?: Record<string, unknown>) => {
+    if (typeof window === 'undefined' || !('BroadcastChannel' in window)) return;
+    try {
+      const channel = new BroadcastChannel('cric_auction_sync');
+      channel.postMessage({ type: 'STATE_REFRESH', payload });
+      channel.close();
+    } catch {
+      // In-tab controls still work when BroadcastChannel is unavailable.
+    }
+  };
+
   // Helper to persist campaign state to localStorage (Fixes Issue 11)
   const saveCampaignState = (override: Partial<GameStoreState> = {}) => {
     const s = { ...get(), ...override };
@@ -277,6 +299,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       standings: s.standings,
       playoffMatches: s.playoffMatches,
       playoffStage: s.playoffStage,
+      championTeam: s.championTeam,
+      seasonAwards: s.seasonAwards,
       currentScreen: s.currentScreen,
       timestamp: Date.now(),
     });
@@ -297,6 +321,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           standings: s.standings,
           playoffMatches: s.playoffMatches,
           playoffStage: s.playoffStage,
+          championTeam: s.championTeam,
+          seasonAwards: s.seasonAwards,
           currentScreen: s.currentScreen,
         };
       }
@@ -304,6 +330,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     });
     StorageService.saveSessions(updatedSessions);
     StorageService.saveActiveSessionId(currentActiveId);
+    notifyOtherTabs();
   };
 
   return {
@@ -321,7 +348,10 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
     // Game Mode & Multiplayer State (Strictly Human-Only in multiplayer)
     gameMode: 'singleplayer',
-    setGameMode: (mode) => set({ gameMode: mode }),
+    setGameMode: (mode) => {
+      set({ gameMode: mode });
+      notifyOtherTabs({ gameMode: mode });
+    },
 
     multiplayerRoom: null,
     myParticipantId: multiplayerService.getMyParticipantId(),
@@ -329,6 +359,11 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     setMultiplayerModalOpen: (open) => set({ isMultiplayerModalOpen: open }),
     multiplayerError: null,
     setMultiplayerError: (err) => set({ multiplayerError: err }),
+    teamConflictNotice: null,
+    clearTeamConflictNotice: () => {
+      multiplayerService.clearTeamConflictNotice();
+      set({ teamConflictNotice: null });
+    },
     isRoomPaused: false,
     roomPauseReason: null,
     pauseExpiresAt: null,
@@ -375,18 +410,21 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           timestamp: Date.now(),
         });
         StorageService.saveLastScreen('multiplayer_lobby');
+        const conflict = multiplayerService.getTeamConflictNotice();
         set({
           gameMode: 'multiplayer',
           currentScreen: 'multiplayer_lobby',
           isMultiplayerModalOpen: false,
           myParticipantId: multiplayerService.getMyParticipantId(),
+          teamConflictNotice: conflict,
         });
       }
       return success;
     },
 
     claimMultiplayerTeam: (teamId: string) => {
-      set({ userTeamId: teamId });
+      multiplayerService.clearTeamConflictNotice();
+      set({ userTeamId: teamId, teamConflictNotice: null });
       multiplayerService.claimTeam(teamId);
     },
 
@@ -544,6 +582,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         standings: JSON.parse(JSON.stringify(target.standings)),
         playoffMatches: JSON.parse(JSON.stringify(target.playoffMatches)),
         playoffStage: target.playoffStage,
+        championTeam: target.championTeam || null,
+        seasonAwards: target.seasonAwards || null,
         currentScreen: (target.currentScreen as GameScreen) || 'menu',
         isSessionModalOpen: false,
       });
@@ -571,6 +611,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       }
       set({ sessions: updated });
       StorageService.saveSessions(updated);
+      notifyOtherTabs();
     },
 
     duplicateSession: (sessionId: string) => {
@@ -591,6 +632,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       const updated = [cloned, ...get().sessions];
       set({ sessions: updated });
       StorageService.saveSessions(updated);
+      notifyOtherTabs();
     },
 
     auction: initialAuctionState,
@@ -601,8 +643,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     standings: savedCampaign?.standings || [],
     playoffMatches: savedCampaign?.playoffMatches || [],
     playoffStage: savedCampaign?.playoffStage || 'not_started',
-    championTeam: null,
-    seasonAwards: null,
+    championTeam: savedCampaign?.championTeam || null,
+    seasonAwards: savedCampaign?.seasonAwards || null,
     activeScorecardMatch: null,
 
     profile: StorageService.loadProfile(),
@@ -614,8 +656,23 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       };
       set({ profile: updatedProfile });
       StorageService.saveProfile(updatedProfile);
+      notifyOtherTabs();
+    },
+    adminUpdateProfile: (updates: Partial<ManagerProfile>) => {
+      const updatedProfile = { ...get().profile, ...updates };
+      set({ profile: updatedProfile });
+      StorageService.saveProfile(updatedProfile);
+      notifyOtherTabs();
     },
     achievements: StorageService.loadAchievements(INITIAL_ACHIEVEMENTS),
+    adminUpdateAchievement: (achievementId: string, updates: Partial<Achievement>) => {
+      const updated = get().achievements.map(achievement =>
+        achievement.id === achievementId ? { ...achievement, ...updates } : achievement
+      );
+      set({ achievements: updated });
+      StorageService.saveAchievements(updated);
+      notifyOtherTabs();
+    },
     settings: initialSettings,
 
     isSettingsOpen: false,
@@ -938,6 +995,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       if (get().gameMode === 'multiplayer') return;
 
       const { auction } = get();
+      if (auction.isPaused) return;
       if (auction.phase !== 'bidding' && auction.phase !== 'going_once' && auction.phase !== 'going_twice') return;
 
       if (auction.timerSeconds > 1) {
@@ -1333,6 +1391,10 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         standings: initialStandings,
         playoffStage: 'not_started',
         playoffMatches: [],
+        championTeam: null,
+        seasonAwards: null,
+        activeScorecardMatch: null,
+        isTrophyModalOpen: false,
         currentScreen: 'season',
       });
 
@@ -1658,6 +1720,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         }
       }
       set({ settings: merged });
+      notifyOtherTabs();
     },
 
     // Effective dataset switcher (Fixes Issue 14)
@@ -1774,6 +1837,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       });
       StorageService.saveSessions([defaultInitialSession]);
       StorageService.saveActiveSessionId(defaultInitialSession.id);
+      get().updateSettings(StorageService.loadSettings());
+      saveCampaignState();
     },
 
     setSettingsOpen: (open: boolean) => set({ isSettingsOpen: open }),
@@ -1903,6 +1968,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       };
       set({ profile: updatedProfile });
       StorageService.saveProfile(updatedProfile);
+      notifyOtherTabs();
     },
 
     adminUnlockAllAchievements: () => {
@@ -1914,6 +1980,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       }));
       set({ achievements: updated });
       StorageService.saveAchievements(updated);
+      notifyOtherTabs();
       confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
     },
 
@@ -2058,6 +2125,18 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       saveCampaignState({ auction: newAuction });
     },
 
+    adminUpdateAuction: (updates: Partial<AuctionState>) => {
+      const updatedAuction = { ...get().auction, ...updates };
+      set({ auction: updatedAuction });
+      saveCampaignState({ auction: updatedAuction });
+    },
+
+    adminToggleAuctionPause: () => {
+      const updatedAuction = { ...get().auction, isPaused: !get().auction.isPaused };
+      set({ auction: updatedAuction });
+      saveCampaignState({ auction: updatedAuction });
+    },
+
     adminForceMatchResult: (matchId: string, winnerTeamId: string, margin?: string) => {
       const { leagueMatches, playoffMatches, teams } = get();
       const winner = teams.find(t => t.id === winnerTeamId);
@@ -2105,7 +2184,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       const updatedProfile = {
         ...profile,
         trophies: champ.id === get().userTeamId ? profile.trophies + 1 : profile.trophies,
-        reputation: profile.reputation + 250,
+        reputation: Math.min(100, profile.reputation + 15),
       };
 
       set({
@@ -2116,24 +2195,34 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       });
 
       StorageService.saveProfile(updatedProfile);
+      saveCampaignState();
       confetti({ particleCount: 100, spread: 100, origin: { y: 0.5 } });
     },
 
     adminExportState: () => {
       const state = get();
       const exportData = {
+        version: 2,
+        gameMode: state.gameMode,
+        currentScreen: state.currentScreen,
         userTeamId: state.userTeamId,
         teams: state.teams,
         players: state.players,
         auction: state.auction,
+        selectedScoutPlayer: state.selectedScoutPlayer,
         leagueMatches: state.leagueMatches,
         currentMatchIndex: state.currentMatchIndex,
         standings: state.standings,
         playoffMatches: state.playoffMatches,
         playoffStage: state.playoffStage,
+        championTeam: state.championTeam,
+        seasonAwards: state.seasonAwards,
+        activeScorecardMatch: state.activeScorecardMatch,
         profile: state.profile,
         achievements: state.achievements,
         settings: state.settings,
+        sessions: state.sessions,
+        activeSessionId: state.activeSessionId,
         exportTimestamp: Date.now(),
       };
       return JSON.stringify(exportData, null, 2);
@@ -2142,38 +2231,56 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     adminImportState: (jsonStr: string) => {
       try {
         const data = JSON.parse(jsonStr);
-        if (!data.teams || !data.players) return false;
+        if (!Array.isArray(data.teams) || data.teams.length === 0 || !Array.isArray(data.players)) return false;
+
+        const current = get();
+        const validScreens: GameScreen[] = ['start', 'menu', 'teams', 'auction', 'squad', 'season', 'admin', 'multiplayer_lobby'];
+        const nextTeams = data.teams;
+        const nextUserTeamId = nextTeams.some((team: Team) => team.id === data.userTeamId)
+          ? data.userTeamId
+          : nextTeams[0].id;
+        const nextSettings = data.settings && typeof data.settings === 'object'
+          ? { ...current.settings, ...data.settings }
+          : current.settings;
+        const nextSessions = Array.isArray(data.sessions) && data.sessions.length > 0
+          ? data.sessions
+          : current.sessions;
+        const nextActiveSessionId = nextSessions.some((session: IPLSession) => session.id === data.activeSessionId)
+          ? data.activeSessionId
+          : nextSessions[0]?.id || current.activeSessionId;
+        const nextCurrentScreen = validScreens.includes(data.currentScreen) ? data.currentScreen : current.currentScreen;
 
         set({
-          userTeamId: data.userTeamId || data.teams[0].id,
-          teams: data.teams,
+          gameMode: data.gameMode === 'multiplayer' ? 'multiplayer' : 'singleplayer',
+          currentScreen: nextCurrentScreen,
+          userTeamId: nextUserTeamId,
+          teams: nextTeams,
           players: data.players,
-          auction: data.auction || get().auction,
-          leagueMatches: data.leagueMatches || [],
-          currentMatchIndex: data.currentMatchIndex || 0,
-          standings: data.standings || [],
-          playoffMatches: data.playoffMatches || [],
+          auction: data.auction || current.auction,
+          selectedScoutPlayer: data.selectedScoutPlayer ?? null,
+          leagueMatches: Array.isArray(data.leagueMatches) ? data.leagueMatches : [],
+          currentMatchIndex: Number.isFinite(data.currentMatchIndex) ? data.currentMatchIndex : 0,
+          standings: Array.isArray(data.standings) ? data.standings : [],
+          playoffMatches: Array.isArray(data.playoffMatches) ? data.playoffMatches : [],
           playoffStage: data.playoffStage || 'not_started',
-          profile: data.profile || get().profile,
-          achievements: data.achievements || get().achievements,
-          settings: data.settings || get().settings,
+          championTeam: data.championTeam || null,
+          seasonAwards: data.seasonAwards || null,
+          activeScorecardMatch: data.activeScorecardMatch || null,
+          profile: data.profile || current.profile,
+          achievements: Array.isArray(data.achievements) ? data.achievements : current.achievements,
+          settings: nextSettings,
+          sessions: nextSessions,
+          activeSessionId: nextActiveSessionId,
         });
 
-        saveCampaignState({
-          userTeamId: data.userTeamId || data.teams[0].id,
-          teams: data.teams,
-          players: data.players,
-          auction: data.auction,
-          leagueMatches: data.leagueMatches || [],
-          currentMatchIndex: data.currentMatchIndex || 0,
-          standings: data.standings || [],
-          playoffMatches: data.playoffMatches || [],
-          playoffStage: data.playoffStage || 'not_started',
-        });
-
+        get().updateSettings(nextSettings);
+        StorageService.saveLastScreen(nextCurrentScreen);
+        saveCampaignState({ currentScreen: nextCurrentScreen });
+        StorageService.saveSessions(nextSessions);
+        StorageService.saveActiveSessionId(nextActiveSessionId);
         if (data.profile) StorageService.saveProfile(data.profile);
-        if (data.achievements) StorageService.saveAchievements(data.achievements);
-        if (data.settings) StorageService.saveSettings(data.settings);
+        if (Array.isArray(data.achievements)) StorageService.saveAchievements(data.achievements);
+        notifyOtherTabs();
 
         return true;
       } catch (err) {
@@ -2192,6 +2299,48 @@ if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
       const { type, payload } = event.data || {};
       const store = useGameStore.getState();
       switch (type) {
+        case 'STATE_REFRESH': {
+          const campaign = StorageService.loadCampaign();
+          const sessions = StorageService.loadSessions();
+          const nextSettings = StorageService.loadSettings();
+          const nextScreen = campaign?.currentScreen;
+          const validScreens: GameScreen[] = ['start', 'menu', 'teams', 'auction', 'squad', 'season', 'admin', 'multiplayer_lobby'];
+          const refreshedState: Partial<GameStoreState> = {
+            profile: StorageService.loadProfile(),
+            achievements: StorageService.loadAchievements(INITIAL_ACHIEVEMENTS),
+            settings: nextSettings,
+            ...(payload?.gameMode === 'singleplayer' || payload?.gameMode === 'multiplayer' ? { gameMode: payload.gameMode } : {}),
+            ...(sessions.length ? {
+              sessions,
+              activeSessionId: StorageService.loadActiveSessionId() || sessions[0].id,
+            } : {}),
+            ...(campaign ? {
+              userTeamId: campaign.userTeamId,
+              teams: (campaign.teams && campaign.teams.length >= 10) ? campaign.teams : fallbackTeams,
+              players: campaign.players,
+              auction: campaign.auction,
+              leagueMatches: campaign.leagueMatches,
+              currentMatchIndex: campaign.currentMatchIndex,
+              standings: campaign.standings,
+              playoffMatches: campaign.playoffMatches,
+              playoffStage: campaign.playoffStage,
+              championTeam: campaign.championTeam || null,
+              seasonAwards: campaign.seasonAwards || null,
+              currentScreen: validScreens.includes(nextScreen as GameScreen) ? nextScreen as GameScreen : store.currentScreen,
+            } : {}),
+          };
+
+          soundService.enabled = nextSettings.soundEnabled;
+          if (typeof document !== 'undefined') {
+            const isNight = nextSettings.theme === 'night';
+            document.documentElement.classList.toggle('dark', isNight);
+            document.documentElement.classList.toggle('day', !isNight);
+            document.documentElement.setAttribute('data-theme', isNight ? 'night' : 'day');
+            document.documentElement.style.colorScheme = isNight ? 'dark' : 'light';
+          }
+          useGameStore.setState(refreshedState);
+          break;
+        }
         case 'INJECT_PURSE':
           if (payload?.teamId && typeof payload?.amount === 'number') {
             store.adminUpdateTeamPurse(payload.teamId, payload.amount);
@@ -2256,22 +2405,24 @@ if (typeof window !== 'undefined') {
     });
 
     if (room.status === 'auction') {
-      store.setScreen('auction');
+      if (store.currentScreen === 'multiplayer_lobby' || store.currentScreen === 'start') {
+        store.setScreen('auction');
+      }
     } else if (room.status === 'lobby') {
-      store.setScreen('multiplayer_lobby');
+      if (store.currentScreen === 'start') {
+        store.setScreen('multiplayer_lobby');
+      }
     }
   });
 
   multiplayerService.onAuctionSync(({ auctionState, teams, players }) => {
-    StorageService.saveLastScreen('auction');
     const store = useGameStore.getState();
     const myPid = multiplayerService.getMyParticipantId();
     const myPart = store.multiplayerRoom?.participants.find(p => p.id === myPid || (store.profile?.name && p.name.trim().toLowerCase() === store.profile.name.trim().toLowerCase()));
     useGameStore.setState({
       auction: auctionState,
-      currentScreen: 'auction',
       ...(myPart?.teamId ? { userTeamId: myPart.teamId } : {}),
-      ...(teams && teams.length > 0 ? { teams } : {}),
+      ...(teams && teams.length >= 10 ? { teams } : {}),
       ...(players && players.length > 0 ? { players } : {}),
       isRoomPaused: false,
       roomPauseReason: null,

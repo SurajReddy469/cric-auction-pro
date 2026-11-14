@@ -48,7 +48,7 @@ export type MultiplayerClientEvent =
 
 export type MultiplayerServerEvent =
   | { type: 'ROOM_CREATED'; payload: { room: MultiplayerRoomState; myParticipantId: string } }
-  | { type: 'ROOM_JOINED'; payload: { room: MultiplayerRoomState; myParticipantId: string } }
+  | { type: 'ROOM_JOINED'; payload: { room: MultiplayerRoomState; myParticipantId: string; teamConflictNotice?: { requestedTeamId: string; claimedByName: string } | null } }
   | { type: 'ROOM_UPDATED'; payload: { room: MultiplayerRoomState } }
   | { type: 'AUCTION_SYNC'; payload: { auctionState: AuctionState; teams: Team[]; players: Player[] } }
   | { type: 'ROOM_PAUSED'; payload: { reason: string; disconnectedParticipant: RoomParticipant; pauseExpiresAt: number } }

@@ -1,7 +1,7 @@
 import { Team } from './team';
 import { Player } from './player';
 import { AuctionState } from './auction';
-import { Match, LeagueStanding, PlayoffStage } from './season';
+import { Match, LeagueStanding, PlayoffStage, SeasonAwards } from './season';
 
 export type SessionFormat = 'mega' | 'mini' | 'turbo' | 'custom';
 
@@ -26,6 +26,8 @@ export interface IPLSession {
   standings: LeagueStanding[];
   playoffMatches: Match[];
   playoffStage: PlayoffStage;
+  championTeam?: Team | null;
+  seasonAwards?: SeasonAwards | null;
 }
 
 export interface CreateSessionInput {

@@ -4,6 +4,7 @@ import { useGameStore } from '../../store/useGameStore';
 import { TeamBadge } from '../common/TeamBadge';
 import { soundService } from '../../services/soundService';
 import { multiplayerService } from '../../services/multiplayerService';
+import { INITIAL_TEAMS } from '../../data/teams';
 import {
   Users,
   Copy,
@@ -29,6 +30,9 @@ export const MultiplayerLobby: React.FC = () => {
     leaveMultiplayerRoom,
     multiplayerError,
     setMultiplayerError,
+    teamConflictNotice,
+    clearTeamConflictNotice,
+    setScreen,
   } = useGameStore();
 
   const [copiedCode, setCopiedCode] = useState(false);
@@ -50,6 +54,7 @@ export const MultiplayerLobby: React.FC = () => {
   }
 
   const { roomCode, roomName, requiredPlayers, participants } = multiplayerRoom;
+  const availableTeams = (teams && teams.length >= 10) ? teams : INITIAL_TEAMS;
 
   // Resolve current participant with rock-solid fallbacks across all devices
   const myParticipant = participants.find(p => p.id === myParticipantId)
@@ -144,6 +149,9 @@ export const MultiplayerLobby: React.FC = () => {
     soundService.playGavel();
     startMultiplayerAuction();
   };
+
+  const conflictTeam = teamConflictNotice ? availableTeams.find(t => t.id === teamConflictNotice.requestedTeamId) : null;
+  const conflictTeamName = conflictTeam ? conflictTeam.name : teamConflictNotice?.requestedTeamId;
 
   return (
     <div className="mx-auto flex min-h-[calc(100vh-65px)] w-full max-w-6xl flex-col gap-6 px-3 py-6 sm:px-6 lg:px-8">
@@ -250,6 +258,59 @@ export const MultiplayerLobby: React.FC = () => {
         </motion.div>
       )}
 
+      {/* Preferred Team Conflict Notice (Requirement 7) */}
+      {teamConflictNotice && !myParticipant?.teamId && (
+        <motion.div
+          initial={{ opacity: 0, y: -5 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between p-4 rounded-2xl bg-amber-500/15 border-2 border-amber-500/40 text-amber-950 text-xs sm:text-sm font-bold shadow-sm"
+        >
+          <div className="flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
+            <div>
+              <p className="font-black text-amber-900">Franchise Already Claimed!</p>
+              <p className="text-amber-800 font-semibold mt-0.5">
+                Your preferred franchise (<span className="font-black">{conflictTeamName}</span>) was already claimed by <span className="font-black">{teamConflictNotice.claimedByName}</span>. Please choose any available franchise from the right column below!
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => clearTeamConflictNotice()}
+            className="px-3 py-1.5 rounded-xl bg-amber-600/20 hover:bg-amber-600/30 text-amber-900 text-xs font-black transition-colors shrink-0 ml-3 cursor-pointer"
+          >
+            Dismiss
+          </button>
+        </motion.div>
+      )}
+
+      {/* Live Auction In-Progress Banner (Requirement 8) */}
+      {multiplayerRoom.status === 'auction' && (
+        <div className="p-4 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/40 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md">
+          <div className="flex items-center gap-3">
+            <div className="flex h-3 w-3 relative shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
+            </div>
+            <div>
+              <h4 className="text-sm font-black text-emerald-950">Live Auction In Progress</h4>
+              <p className="text-xs text-emerald-800 font-semibold">The auction hammer is active! You can review room details here and return to live bidding anytime.</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              soundService.playClick();
+              setScreen('auction');
+            }}
+            className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs tracking-wider shadow-md hover:scale-105 active:scale-95 transition-all flex items-center gap-2 shrink-0 cursor-pointer"
+          >
+            <Play className="h-4 w-4 fill-current" />
+            <span>Return to Live Auction</span>
+          </button>
+        </div>
+      )}
+
       {/* Main Grid: Connected Participants & Franchise Selection */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Human Participants (4 cols) */}
@@ -263,7 +324,7 @@ export const MultiplayerLobby: React.FC = () => {
           <div className="space-y-2.5">
             {participants.map((p) => {
               const isMe = p.id === effectiveMyId;
-              const claimedTeam = teams.find(t => t.id === p.teamId);
+              const claimedTeam = availableTeams.find(t => t.id === p.teamId);
 
               return (
                 <div
@@ -340,7 +401,7 @@ export const MultiplayerLobby: React.FC = () => {
                 // If player doesn't have a team yet, find and claim first available team
                 if (!myParticipant?.teamId) {
                   const claimedTeamIds = new Set(participants.map(p => p.teamId).filter(Boolean));
-                  const availableTeam = teams.find(t => !claimedTeamIds.has(t.id));
+                  const availableTeam = availableTeams.find(t => !claimedTeamIds.has(t.id));
                   if (availableTeam) {
                     claimMultiplayerTeam(availableTeam.id);
                   }
@@ -395,7 +456,7 @@ export const MultiplayerLobby: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {teams.map((team) => {
+            {availableTeams.map((team) => {
               const claimedBy = participants.find(p => p.teamId === team.id);
               const isClaimedByMe = claimedBy?.id === effectiveMyId || (myParticipant && claimedBy?.id === myParticipant.id);
               const isClaimedByOther = claimedBy && !isClaimedByMe;

@@ -266,7 +266,7 @@ wss.on('connection', (ws) => {
           }
           const participantId = payload.playerId || `player_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
           
-          const roomTeams = (payload.teams && payload.teams.length > 0) ? payload.teams : JSON.parse(JSON.stringify(DEFAULT_TEAMS));
+          const roomTeams = (payload.teams && payload.teams.length >= 10) ? payload.teams : JSON.parse(JSON.stringify(DEFAULT_TEAMS));
           const hostTeamId = (payload.hostTeamId && roomTeams.some(t => t.id === payload.hostTeamId))
             ? payload.hostTeamId
             : null;
@@ -402,10 +402,19 @@ wss.on('connection', (ws) => {
             return;
           }
 
-          // If a preferred teamId was provided and is not already claimed, assign it
+          // If a preferred teamId was provided and is not already claimed, assign it; otherwise report conflict
           let initialTeamId = null;
-          if (payload.teamId && !room.participants.some(p => p.teamId === payload.teamId)) {
-            initialTeamId = payload.teamId;
+          let teamConflictNotice = null;
+          if (payload.teamId) {
+            const alreadyClaimed = room.participants.find(p => p.teamId === payload.teamId);
+            if (!alreadyClaimed) {
+              initialTeamId = payload.teamId;
+            } else {
+              teamConflictNotice = {
+                requestedTeamId: payload.teamId,
+                claimedByName: alreadyClaimed.name
+              };
+            }
           }
 
           const newParticipant = {
@@ -427,7 +436,7 @@ wss.on('connection', (ws) => {
 
           ws.send(JSON.stringify({
             type: 'ROOM_JOINED',
-            payload: { room, myParticipantId: participantId }
+            payload: { room, myParticipantId: participantId, teamConflictNotice }
           }));
 
           broadcastToRoom(code, {
@@ -539,11 +548,7 @@ wss.on('connection', (ws) => {
             return;
           }
 
-          // STRICT HUMAN-ONLY: Filter active teams strictly to human claimed franchises
-          const humanTeamIds = new Set(room.participants.map(p => p.teamId));
-          room.teams = (room.teams || []).filter(t => humanTeamIds.has(t.id));
-
-          // Reset starting purses to room.purseCap
+          // Keep all franchises visible; only human participants are allowed to place bids.
           room.teams.forEach(t => {
             t.startingPurse = room.purseCap;
             t.currentPurse = room.purseCap;
