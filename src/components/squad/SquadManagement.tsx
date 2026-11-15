@@ -264,7 +264,7 @@ export const SquadManagement: React.FC = () => {
                     <div className="text-right text-xs">
                       <span className="text-[10px] text-slate-400 block font-semibold">Hammer</span>
                       <span className="font-mono font-bold text-amber-700">
-                        ₹{p.soldPrice?.toFixed(2)} Cr
+                        ₹{(p.soldPrice ?? p.basePrice).toFixed(2)} Cr
                       </span>
                     </div>
 

@@ -86,10 +86,10 @@ export const SeasonHub: React.FC = () => {
 
                 <button
                   onClick={handleFastSimAll}
-                  className="flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-amber-400 font-bold text-xs transition-colors shadow-sm"
+                  className="flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-amber-400 font-bold text-xs transition-colors shadow-sm cursor-pointer"
                 >
                   <FastForward className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Sim All 56</span>
+                  <span>Sim All ({totalMatches - currentMatchIndex})</span>
                 </button>
               </>
             )}
