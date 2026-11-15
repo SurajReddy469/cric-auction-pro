@@ -57,12 +57,6 @@ export const MultiplayerModal: React.FC = () => {
     else soundService.playBuzzer();
   };
 
-  useEffect(() => {
-    if (isMultiplayerModalOpen && !playerName) {
-      setPlayerName(profile.name || 'Vikram Sengupta');
-    }
-  }, [isMultiplayerModalOpen, profile.name, playerName]);
-
   if (!isMultiplayerModalOpen) return null;
 
   const handleCreate = async (e: React.FormEvent) => {

@@ -29,6 +29,7 @@
     "build": "tsc -b && vite build && vite build admin --config admin/vite.config.ts --outDir ../dist/admin",
     "lint": "oxlint",
     "test": "vitest run",
+    "healthcheck": "node scripts/check_live.js",
     "preview": "vite preview"
   },
   "dependencies": {

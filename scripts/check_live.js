@@ -5,12 +5,12 @@
  * Supports configurable target via CLI argument or TARGET_URL environment variable.
  *
  * Usage:
- *   node check_live.js
- *   node check_live.js https://my-custom-domain.com
- *   TARGET_URL=https://my-custom-domain.com node check_live.js
+ *   node scripts/check_live.js
+ *   node scripts/check_live.js https://my-custom-domain.com
+ *   TARGET_URL=https://my-custom-domain.com node scripts/check_live.js
  */
 
-const targetUrl = process.argv[2] || process.env.TARGET_URL || 'https://cric-auction-pro.vercel.app';
+const targetUrl = process.argv[2] || process.env.TARGET_URL || 'https://cricket-auction-pro-five.vercel.app';
 
 console.log(`🔍 Checking live target: ${targetUrl}`);
 const startTime = Date.now();

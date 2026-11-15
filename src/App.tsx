@@ -26,7 +26,7 @@ export const App: React.FC = () => {
       // Reconnect to active multiplayer room
       joinMultiplayerRoom(activeMp.roomCode, activeMp.playerName);
     }
-  }, []);
+  }, [joinMultiplayerRoom, multiplayerRoom]);
 
   const renderScreen = () => {
     switch (currentScreen) {

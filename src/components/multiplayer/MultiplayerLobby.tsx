@@ -37,6 +37,18 @@ export const MultiplayerLobby: React.FC = () => {
 
   const [copiedCode, setCopiedCode] = useState(false);
 
+  const participantsList = multiplayerRoom?.participants;
+  const myParticipant = participantsList?.find(p => p.id === myParticipantId)
+    || (profile?.name ? participantsList?.find(p => p.name.trim().toLowerCase() === profile.name.trim().toLowerCase()) : undefined)
+    || participantsList?.find(p => p.id === multiplayerService.getMyParticipantId())
+    || (participantsList && participantsList.length === 1 ? participantsList[0] : undefined);
+
+  useEffect(() => {
+    if (myParticipant && myParticipant.id && myParticipant.id !== myParticipantId) {
+      useGameStore.setState({ myParticipantId: myParticipant.id });
+    }
+  }, [myParticipant, myParticipantId]);
+
   if (!multiplayerRoom) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center p-4">
@@ -56,20 +68,8 @@ export const MultiplayerLobby: React.FC = () => {
   const { roomCode, roomName, requiredPlayers, participants } = multiplayerRoom;
   const availableTeams = (teams && teams.length >= 10) ? teams : INITIAL_TEAMS;
 
-  // Resolve current participant with rock-solid fallbacks across all devices
-  const myParticipant = participants.find(p => p.id === myParticipantId)
-    || (profile?.name ? participants.find(p => p.name.trim().toLowerCase() === profile.name.trim().toLowerCase()) : undefined)
-    || participants.find(p => p.id === multiplayerService.getMyParticipantId())
-    || (participants.length === 1 ? participants[0] : undefined);
-
   const effectiveMyId = myParticipant?.id || myParticipantId;
   const isHost = myParticipant?.isHost ?? false;
-
-  useEffect(() => {
-    if (myParticipant && myParticipant.id && myParticipant.id !== myParticipantId) {
-      useGameStore.setState({ myParticipantId: myParticipant.id });
-    }
-  }, [myParticipant, myParticipantId]);
   const readyCount = participants.filter(p => p.isReady).length;
   const hasEnoughPlayers = participants.length >= requiredPlayers;
   const allReady = hasEnoughPlayers && participants.every(p => p.isReady && p.teamId);

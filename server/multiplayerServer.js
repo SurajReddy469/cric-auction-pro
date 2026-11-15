@@ -2,7 +2,6 @@ import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 
 const PORT = process.env.PORT || 5175;
-const REQUIRED_PLAYERS = 10;
 
 // In-memory Room Store
 const rooms = new Map();
