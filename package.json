@@ -1,8 +1,26 @@
 {
-  "name": "games-tp",
+  "name": "cric-auction-pro",
+  "version": "1.0.0",
+  "description": "Broadcast-Grade IPL Mega Auction, Squad Management & Championship Simulator",
   "private": true,
-  "version": "0.0.0",
   "type": "module",
+  "homepage": "https://cricket-auction-pro-five.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SurajReddy469/cric-auction-pro.git"
+  },
+  "keywords": [
+    "cricket",
+    "ipl",
+    "ipl-auction",
+    "auction-simulator",
+    "cricket-game",
+    "react19",
+    "typescript",
+    "vite",
+    "tailwind",
+    "multiplayer"
+  ],
   "scripts": {
     "start": "node server/multiplayerServer.js",
     "dev": "vite",
