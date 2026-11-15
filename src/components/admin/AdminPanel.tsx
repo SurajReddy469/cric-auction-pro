@@ -42,10 +42,14 @@ import {
   SkipForward,
   Plus,
   Trash2,
-  SlidersHorizontal
+  SlidersHorizontal,
+  MessageSquare,
+  Star,
+  Bug,
+  CheckCircle2
 } from 'lucide-react';
 
-type AdminTab = 'cheats' | 'controls' | 'sessions' | 'teams' | 'players' | 'auction' | 'tournament' | 'career' | 'backup';
+type AdminTab = 'cheats' | 'controls' | 'sessions' | 'teams' | 'players' | 'auction' | 'tournament' | 'career' | 'feedback' | 'backup';
 
 interface AdminPanelProps {
   standalone?: boolean;
@@ -108,12 +112,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ standalone = false }) =>
     adminImportState,
     resetAllGameData,
     autoCompleteAuction,
+    feedbackList,
+    updateFeedbackStatus,
+    deleteFeedback,
+    clearAllFeedback,
+    submitFeedback,
   } = useGameStore();
 
   const [activeTab, setActiveTab] = useState<AdminTab>('teams');
   const [copiedNotification, setCopiedNotification] = useState<boolean>(false);
   const [importJsonText, setImportJsonText] = useState<string>('');
   const [importStatus, setImportStatus] = useState<string | null>(null);
+
+  // Feedback Filtering State
+  const [feedbackCategoryFilter, setFeedbackCategoryFilter] = useState<string>('all');
+  const [feedbackStatusFilter, setFeedbackStatusFilter] = useState<string>('all');
+  const [feedbackSearch, setFeedbackSearch] = useState<string>('');
 
   // Player search & filter
   const [playerSearch, setPlayerSearch] = useState<string>('');
@@ -185,6 +199,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ standalone = false }) =>
       title: 'Career & Achievements',
       description: 'Edit manager records, reputation, scouting resources, and achievement progress.'
     },
+    feedback: {
+      title: 'Manager Feedback & Inquiries',
+      description: 'Review bug reports, player suggestions, ratings, and feedback submitted by managers.'
+    },
     backup: {
       title: 'Data & Backups',
       description: 'Export a campaign snapshot or restore a saved state.'
@@ -204,7 +222,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ standalone = false }) =>
       ]
     },
     { label: 'CAREER', items: [{ id: 'career', label: 'Career & Achievements', icon: Medal }] },
-    { label: 'SYSTEM', items: [{ id: 'backup', label: 'Data & Backups', icon: Database }] }
+    {
+      label: 'SYSTEM',
+      items: [
+        { id: 'feedback', label: 'User Feedback', icon: MessageSquare },
+        { id: 'backup', label: 'Data & Backups', icon: Database }
+      ]
+    }
   ];
 
   const liveAuction = auction.phase !== 'idle' && auction.phase !== 'completed';
@@ -216,6 +240,52 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ standalone = false }) =>
   const visibleTeams = teams.filter(team =>
     `${team.name} ${team.shortName} ${team.personality}`.toLowerCase().includes(teamSearch.toLowerCase())
   );
+
+  const unreadFeedbackCount = feedbackList.filter(f => f.status === 'new').length;
+  const avgFeedbackRating = feedbackList.length > 0 
+    ? (feedbackList.reduce((acc, f) => acc + f.rating, 0) / feedbackList.length).toFixed(1)
+    : '5.0';
+
+  const filteredFeedback = feedbackList.filter(item => {
+    if (feedbackCategoryFilter !== 'all' && item.category !== feedbackCategoryFilter) return false;
+    if (feedbackStatusFilter !== 'all' && item.status !== feedbackStatusFilter) return false;
+    if (feedbackSearch.trim()) {
+      const q = feedbackSearch.toLowerCase();
+      const matchesMsg = item.message.toLowerCase().includes(q);
+      const matchesUser = (item.userName || '').toLowerCase().includes(q);
+      const matchesEmail = (item.userEmail || '').toLowerCase().includes(q);
+      const matchesTeam = (item.context?.userTeamName || '').toLowerCase().includes(q);
+      return matchesMsg || matchesUser || matchesEmail || matchesTeam;
+    }
+    return true;
+  });
+
+  const handleSeedSampleFeedback = () => {
+    submitFeedback({
+      rating: 5,
+      category: 'gameplay',
+      userName: 'Dhoni Fan 07',
+      userEmail: 'msd.fan@example.com',
+      message: 'The live gavel sound and franchise bidding war is intense! Absolutely loved signing Heinrich Klaasen for CSK.',
+      context: { userTeamName: 'Chennai Super Kings', gameMode: 'singleplayer', currentScreen: 'auction' }
+    });
+    submitFeedback({
+      rating: 4,
+      category: 'feature',
+      userName: 'TacticalManager',
+      userEmail: 'tactics@cricket.org',
+      message: 'Could we get an option to customize franchise jersey colors alongside the logos in the next update?',
+      context: { userTeamName: 'Mumbai Indians', gameMode: 'singleplayer', currentScreen: 'squad' }
+    });
+    submitFeedback({
+      rating: 5,
+      category: 'bug',
+      userName: 'MultiplayerTester',
+      message: 'Checked the sold lot popup when winning a bid in multiplayer room. Now displaying smoothly with full franchise crest!',
+      context: { userTeamName: 'Royal Challengers Bengaluru', gameMode: 'multiplayer', currentScreen: 'auction' }
+    });
+    soundService.playSoldFanfare();
+  };
 
   const handleCopyExport = () => {
     const json = adminExportState();
@@ -356,6 +426,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ standalone = false }) =>
                     >
                       <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-amber-800' : 'text-slate-400'}`} />
                       <span className="flex-1">{item.label}</span>
+                      {item.id === 'feedback' && unreadFeedbackCount > 0 && (
+                        <span className="px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[9px] font-black">
+                          {unreadFeedbackCount}
+                        </span>
+                      )}
                       {isActive && <ChevronRight className="h-3.5 w-3.5" />}
                     </button>
                   );
@@ -1555,6 +1630,357 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ standalone = false }) =>
               ))}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* TAB: USER FEEDBACK & REPORTS */}
+      {activeTab === 'feedback' && (
+        <div className="space-y-6">
+          {/* Top Metric Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Inquiries</p>
+                <p className="text-2xl sm:text-3xl font-black text-slate-900 mt-0.5">{feedbackList.length}</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15 text-amber-700">
+                <MessageSquare className="w-5 h-5" />
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Average Rating</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="text-2xl sm:text-3xl font-black text-amber-600 font-mono">{avgFeedbackRating}</span>
+                  <span className="text-xs text-slate-400 font-bold">/ 5.0</span>
+                </div>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15 text-amber-500">
+                <Star className="w-5 h-5 fill-amber-400" />
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Needs Review</p>
+                <p className="text-2xl sm:text-3xl font-black text-rose-600 mt-0.5">{unreadFeedbackCount}</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500/15 text-rose-600">
+                <Bug className="w-5 h-5" />
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Resolved</p>
+                <p className="text-2xl sm:text-3xl font-black text-emerald-600 mt-0.5">
+                  {feedbackList.filter(f => f.status === 'resolved').length}
+                </p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+            </div>
+          </div>
+
+          {/* Filter & Action Toolbar */}
+          <div className="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3 flex-wrap">
+            {/* Category Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+              {[
+                { id: 'all', label: 'All Inquiries' },
+                { id: 'bug', label: 'Bugs' },
+                { id: 'feature', label: 'Features' },
+                { id: 'gameplay', label: 'Gameplay' },
+                { id: 'general', label: 'General' },
+              ].map(cat => (
+                <button
+                  type="button"
+                  key={cat.id}
+                  onClick={() => {
+                    soundService.playClick();
+                    setFeedbackCategoryFilter(cat.id);
+                  }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                    feedbackCategoryFilter === cat.id
+                      ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+
+              <div className="h-4 w-px bg-slate-300 mx-1" />
+
+              {/* Status Filter */}
+              {[
+                { id: 'all', label: 'All Status' },
+                { id: 'new', label: 'New' },
+                { id: 'reviewed', label: 'Reviewed' },
+                { id: 'resolved', label: 'Resolved' },
+              ].map(st => (
+                <button
+                  type="button"
+                  key={st.id}
+                  onClick={() => {
+                    soundService.playClick();
+                    setFeedbackStatusFilter(st.id);
+                  }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                    feedbackStatusFilter === st.id
+                      ? 'bg-slate-900 text-white font-black shadow-sm'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                  }`}
+                >
+                  {st.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Search Input */}
+            <div className="relative flex-1 min-w-[200px] max-w-sm">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+              <input
+                type="search"
+                value={feedbackSearch}
+                onChange={(e) => setFeedbackSearch(e.target.value)}
+                placeholder="Filter by keyword, user, or team..."
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-1.5 pl-8 pr-3 text-xs font-medium text-slate-800 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSeedSampleFeedback}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-300 text-amber-900 text-xs font-bold transition-colors cursor-pointer"
+                title="Populate 3 realistic test feedbacks"
+              >
+                <Plus className="w-3.5 h-3.5 text-amber-700" />
+                <span>Seed Sample Data</span>
+              </button>
+
+              {feedbackList.length > 0 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const json = JSON.stringify(feedbackList, null, 2);
+                      const blob = new Blob([json], { type: 'application/json' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `cric-auction-feedback-${new Date().toISOString().slice(0, 10)}.json`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Export JSON</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm('Delete all submitted player feedback? This action cannot be undone.')) {
+                        clearAllFeedback();
+                      }
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Clear All</span>
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Feedback Items List */}
+          {filteredFeedback.length === 0 ? (
+            <div className="rounded-3xl bg-white border border-slate-200 p-12 text-center shadow-sm flex flex-col items-center justify-center space-y-3">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+                <MessageSquare className="w-7 h-7" />
+              </div>
+              <h3 className="text-lg font-black text-slate-900">No Feedback Records Found</h3>
+              <p className="text-xs text-slate-500 max-w-md">
+                No user submissions match the selected filters. Use the "Seed Sample Data" button above to populate test feedback, or submit real feedback via the top navigation bar.
+              </p>
+              <button
+                type="button"
+                onClick={handleSeedSampleFeedback}
+                className="mt-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-md transition-all cursor-pointer"
+              >
+                Generate 3 Sample Reports
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredFeedback.map((item) => {
+                const categoryColor = 
+                  item.category === 'bug'
+                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                    : item.category === 'feature'
+                    ? 'bg-sky-50 text-sky-700 border-sky-200'
+                    : item.category === 'gameplay'
+                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-200';
+
+                const statusBadge = 
+                  item.status === 'new'
+                    ? 'bg-amber-500 text-slate-950'
+                    : item.status === 'reviewed'
+                    ? 'bg-sky-600 text-white'
+                    : 'bg-emerald-600 text-white';
+
+                return (
+                  <div
+                    key={item.id}
+                    className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm transition hover:shadow-md space-y-3"
+                  >
+                    {/* Header Row */}
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* Rating Stars */}
+                        <div className="flex items-center gap-0.5">
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <Star
+                              key={s}
+                              className={`w-4 h-4 ${
+                                s <= item.rating
+                                  ? 'text-amber-500 fill-amber-400'
+                                  : 'text-slate-200'
+                              }`}
+                            />
+                          ))}
+                        </div>
+
+                        {/* Category Badge */}
+                        <span className={`px-2.5 py-0.5 rounded-lg border text-[11px] font-black uppercase tracking-wider ${categoryColor}`}>
+                          {item.category}
+                        </span>
+
+                        {/* Status Badge */}
+                        <span className={`px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider ${statusBadge}`}>
+                          {item.status}
+                        </span>
+                      </div>
+
+                      {/* Timestamp */}
+                      <span className="text-[11px] font-mono text-slate-400">
+                        {new Date(item.timestamp).toLocaleString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </div>
+
+                    {/* Feedback Message Body */}
+                    <div className="rounded-xl bg-slate-50 border border-slate-100 p-3.5 text-xs sm:text-sm text-slate-800 font-medium leading-relaxed">
+                      "{item.message}"
+                    </div>
+
+                    {/* Metadata & Actions Footer */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100 text-xs">
+                      {/* Submitter & Context */}
+                      <div className="flex items-center gap-2 flex-wrap text-slate-500 text-[11px]">
+                        <span className="font-bold text-slate-800">
+                          👤 {item.userName || 'Cricket Manager'}
+                        </span>
+                        {item.userEmail && (
+                          <span>• ✉️ {item.userEmail}</span>
+                        )}
+                        {item.context?.userTeamName && (
+                          <span className="font-mono text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                            Franchise: {item.context.userTeamName}
+                          </span>
+                        )}
+                        {item.context?.gameMode && (
+                          <span className="font-mono text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+                            Mode: {item.context.gameMode}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Commissioner Actions */}
+                      <div className="flex items-center gap-1.5">
+                        {item.status !== 'reviewed' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              soundService.playClick();
+                              updateFeedbackStatus(item.id, 'reviewed');
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 text-[11px] font-bold border border-sky-200 transition cursor-pointer"
+                          >
+                            Mark Reviewed
+                          </button>
+                        )}
+
+                        {item.status !== 'resolved' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              soundService.playClick();
+                              updateFeedbackStatus(item.id, 'resolved');
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-bold border border-emerald-200 transition cursor-pointer"
+                          >
+                            Mark Resolved
+                          </button>
+                        )}
+
+                        {item.status === 'resolved' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              soundService.playClick();
+                              updateFeedbackStatus(item.id, 'new');
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 text-[11px] font-bold border border-amber-200 transition cursor-pointer"
+                          >
+                            Reopen
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(`[Feedback #${item.id}]\nUser: ${item.userName}\nRating: ${item.rating}/5\nCategory: ${item.category}\nMessage: ${item.message}`);
+                            soundService.playClick();
+                          }}
+                          title="Copy feedback"
+                          className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition cursor-pointer"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm('Delete this feedback record?')) {
+                              deleteFeedback(item.id);
+                              soundService.playClick();
+                            }
+                          }}
+                          title="Delete feedback"
+                          className="p-1 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition cursor-pointer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

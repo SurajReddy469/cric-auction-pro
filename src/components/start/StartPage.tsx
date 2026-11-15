@@ -198,7 +198,7 @@ export const StartPage: React.FC = () => {
           : 'bg-[linear-gradient(to_right,#ffffff07_1px,transparent_1px),linear-gradient(to_bottom,#ffffff07_1px,transparent_1px)]'
       }`} />
 
-      {/* Main Command Card Container (Strictly 0 <section> tags) */}
+      {/* Main Command Card Container (Strictly 0 section elements) */}
       <div className={`relative w-full max-w-4xl overflow-hidden rounded-2xl sm:rounded-3xl border shadow-2xl backdrop-blur-2xl transition-all duration-500 ${
         isDay 
           ? 'border-slate-200/90 bg-white/95 text-slate-900 shadow-slate-300/60' 
@@ -261,7 +261,7 @@ export const StartPage: React.FC = () => {
             </motion.div>
           )}
 
-          {/* Manager Identity Card with Animated Neon Aura Effect & Mandatory Validation (Strictly 0 <section> tags) */}
+          {/* Manager Identity Card with Animated Neon Aura Effect & Mandatory Validation (Strictly 0 section elements) */}
           <div className="relative rounded-2xl p-[2px] transition-all duration-500 bg-gradient-to-r from-amber-500/40 via-yellow-400/50 to-amber-600/40 hover:from-amber-400/60 hover:via-yellow-300/70 hover:to-amber-500/60 focus-within:from-amber-400 focus-within:via-yellow-300 focus-within:to-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.15)] focus-within:shadow-[0_0_35px_rgba(245,158,11,0.35)]">
             <div className={`rounded-[14px] p-3.5 sm:p-5 space-y-3 shadow-inner backdrop-blur-xl ${
               isDay ? 'bg-slate-50/95 border border-slate-200/80 text-slate-900' : 'bg-slate-950/90 text-white'

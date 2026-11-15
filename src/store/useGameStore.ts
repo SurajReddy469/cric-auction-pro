@@ -6,6 +6,7 @@ import { Match, LeagueStanding, SeasonAwards } from '../types/season';
 import { ManagerProfile, Achievement } from '../types/career';
 import { IPLSession, CreateSessionInput } from '../types/session';
 import { MultiplayerRoomState } from '../types/multiplayer';
+import { FeedbackItem, FeedbackStatus } from '../types/feedback';
 import { multiplayerService } from '../services/multiplayerService';
 import { REAL_IPL_TEAMS, FICTIONAL_TEAMS, INITIAL_TEAMS } from '../data/teams';
 import { REAL_IPL_PLAYERS, FICTIONAL_PLAYERS, INITIAL_PLAYERS } from '../data/players';
@@ -105,6 +106,15 @@ export interface GameStoreState {
   isTrophyModalOpen: boolean;
   isSessionModalOpen: boolean;
   setSessionModalOpen: (open: boolean) => void;
+  isFeedbackModalOpen: boolean;
+  setFeedbackModalOpen: (open: boolean) => void;
+
+  // Feedback System
+  feedbackList: FeedbackItem[];
+  submitFeedback: (feedback: Omit<FeedbackItem, 'id' | 'timestamp' | 'status'>) => void;
+  updateFeedbackStatus: (id: string, status: FeedbackStatus) => void;
+  deleteFeedback: (id: string) => void;
+  clearAllFeedback: () => void;
 
   // IPL Multi-Session Management
   sessions: IPLSession[];
@@ -685,6 +695,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     isAuctionSummaryOpen: false,
     isMatchModalOpen: false,
     isTrophyModalOpen: false,
+    isFeedbackModalOpen: false,
+    feedbackList: StorageService.loadFeedback(),
 
     selectTeam: (teamId: string) => {
       set({ userTeamId: teamId });
@@ -1086,7 +1098,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
           const isHumanWinner = winningTeamId === get().userTeamId;
           if (isHumanWinner) {
-            confetti({ particleCount: 60, spread: 60, origin: { y: 0.7 } });
+            if (typeof document !== 'undefined') {
+              confetti({ particleCount: 60, spread: 60, origin: { y: 0.7 } });
+            }
             get().unlockAchievement('ach-first-signing');
             if (soldPlayer.basePrice <= 0.5 && winningPrice <= 1.5) {
               get().unlockAchievement('ach-bargain-hunter');
@@ -1095,6 +1109,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
           const newAuctionState: AuctionState = {
             ...auction,
+            currentPlayer: soldPlayer,
+            highestBidderId: winningTeamId,
+            currentBid: winningPrice,
             phase: 'sold',
             timerSeconds: 0,
             feedMessages: [soldMsg, ...auction.feedMessages.slice(0, 40)],
@@ -1903,6 +1920,53 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     setAuctionSummaryOpen: (open: boolean) => set({ isAuctionSummaryOpen: open }),
     setMatchModalOpen: (open: boolean) => set({ isMatchModalOpen: open }),
     setTrophyModalOpen: (open: boolean) => set({ isTrophyModalOpen: open }),
+    setFeedbackModalOpen: (open: boolean) => set({ isFeedbackModalOpen: open }),
+
+    // Feedback Actions
+    submitFeedback: (feedbackInput) => {
+      const newItem: FeedbackItem = {
+        id: `fb_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        rating: Math.max(1, Math.min(5, feedbackInput.rating)),
+        category: feedbackInput.category || 'general',
+        title: feedbackInput.title?.trim() || undefined,
+        message: feedbackInput.message.trim(),
+        userName: feedbackInput.userName?.trim() || get().profile.name || 'Cricket Manager',
+        userEmail: feedbackInput.userEmail?.trim() || undefined,
+        timestamp: Date.now(),
+        status: 'new',
+        context: feedbackInput.context || {
+          userTeamId: get().userTeamId,
+          userTeamName: get().userTeam()?.name,
+          gameMode: get().gameMode,
+          currentScreen: get().currentScreen,
+          dataset: get().settings.dataset,
+          auctionPhase: get().auction.phase,
+        },
+      };
+
+      const updated = StorageService.saveFeedback(newItem);
+      set({ feedbackList: updated });
+      soundService.playBidSound(true);
+      notifyOtherTabs({ feedbackSubmitted: true });
+    },
+
+    updateFeedbackStatus: (id: string, status: FeedbackStatus) => {
+      const updated = StorageService.updateFeedbackStatus(id, status);
+      set({ feedbackList: updated });
+      notifyOtherTabs();
+    },
+
+    deleteFeedback: (id: string) => {
+      const updated = StorageService.deleteFeedback(id);
+      set({ feedbackList: updated });
+      notifyOtherTabs();
+    },
+
+    clearAllFeedback: () => {
+      StorageService.clearAllFeedback();
+      set({ feedbackList: [] });
+      notifyOtherTabs();
+    },
 
     // Admin Panel Actions (God Mode)
     adminUpdateTeamPurse: (teamId: string, newPurse: number) => {
@@ -2049,7 +2113,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       set({ achievements: updated });
       StorageService.saveAchievements(updated);
       notifyOtherTabs();
-      confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
+      if (typeof document !== 'undefined') {
+        confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
+      }
     },
 
     adminForceSellCurrentLot: (teamId: string, price: number) => {
@@ -2090,6 +2156,10 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
       const newAuction: AuctionState = {
         ...auction,
+        currentPlayer: soldPlayer,
+        highestBidderId: targetTeam.id,
+        highestBidderName: targetTeam.name,
+        currentBid: price,
         phase: 'sold',
         timerSeconds: 0,
         feedMessages: [soldMsg, ...auction.feedMessages.slice(0, 40)],
@@ -2117,6 +2187,12 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       });
 
       soundService.playSoldFanfare();
+      notifyOtherTabs();
+
+      // Auto-advance to next lot after displaying the winning popup celebration
+      setTimeout(() => {
+        get().nextAuctionPlayer();
+      }, 2500);
     },
 
     adminForceUnsoldCurrentLot: () => {
@@ -2140,6 +2216,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
       const newAuction: AuctionState = {
         ...auction,
+        currentPlayer: unsoldPlayer,
+        highestBidderId: null,
+        highestBidderName: null,
         phase: 'unsold',
         timerSeconds: 0,
         feedMessages: [unsoldMsg, ...auction.feedMessages.slice(0, 40)],
@@ -2162,6 +2241,14 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         players: updatedPlayers,
         auction: newAuction,
       });
+
+      soundService.playUnsoldBuzzer();
+      notifyOtherTabs();
+
+      // Auto-advance to next lot after displaying unsold overlay
+      setTimeout(() => {
+        get().nextAuctionPlayer();
+      }, 2200);
     },
 
     adminJumpToLot: (lotIndex: number) => {
@@ -2264,7 +2351,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
       StorageService.saveProfile(updatedProfile);
       saveCampaignState();
-      confetti({ particleCount: 100, spread: 100, origin: { y: 0.5 } });
+      if (typeof document !== 'undefined') {
+        confetti({ particleCount: 100, spread: 100, origin: { y: 0.5 } });
+      }
     },
 
     adminExportState: () => {
@@ -2377,6 +2466,7 @@ if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
             profile: StorageService.loadProfile(),
             achievements: StorageService.loadAchievements(INITIAL_ACHIEVEMENTS),
             settings: nextSettings,
+            feedbackList: StorageService.loadFeedback(),
             ...(payload?.gameMode === 'singleplayer' || payload?.gameMode === 'multiplayer' ? { gameMode: payload.gameMode } : {}),
             ...(sessions.length ? {
               sessions,

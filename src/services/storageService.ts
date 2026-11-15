@@ -4,6 +4,7 @@ import { Player } from '../types/player';
 import { AuctionState } from '../types/auction';
 import { Match, LeagueStanding, PlayoffStage, SeasonAwards } from '../types/season';
 import { IPLSession } from '../types/session';
+import { FeedbackItem, FeedbackStatus } from '../types/feedback';
 
 const PROFILE_KEY = 'cric_auction_manager_profile';
 const ACHIEVEMENTS_KEY = 'cric_auction_achievements';
@@ -14,6 +15,7 @@ const SESSIONS_KEY = 'cric_auction_ipl_sessions';
 const ACTIVE_SESSION_ID_KEY = 'cric_auction_active_session_id';
 const ACTIVE_MP_SESSION_KEY = 'cric_auction_active_mp_session';
 const LAST_SCREEN_KEY = 'cric_auction_last_screen';
+const FEEDBACK_KEY = 'cric_auction_user_feedback';
 
 export interface ActiveMultiplayerSession {
   roomCode: string;
@@ -70,7 +72,18 @@ export interface SavedCampaign {
   timestamp: number;
 }
 
-function getStorage(): Storage | null {
+const inMemoryStorage: Record<string, string> = {};
+
+const fallbackStorage: Storage = {
+  getItem: (key: string) => inMemoryStorage[key] ?? null,
+  setItem: (key: string, value: string) => { inMemoryStorage[key] = String(value); },
+  removeItem: (key: string) => { delete inMemoryStorage[key]; },
+  clear: () => { Object.keys(inMemoryStorage).forEach(k => delete inMemoryStorage[k]); },
+  key: (index: number) => Object.keys(inMemoryStorage)[index] ?? null,
+  length: 0,
+};
+
+function getStorage(): Storage {
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
       return window.localStorage;
@@ -80,9 +93,9 @@ function getStorage(): Storage | null {
       return localStorage;
     }
   } catch {
-    return null;
+    return fallbackStorage;
   }
-  return null;
+  return fallbackStorage;
 }
 
 export class StorageService {
@@ -288,6 +301,64 @@ export class StorageService {
       getStorage()?.removeItem(LAST_SCREEN_KEY);
     } catch (e) {
       console.warn('Failed to clear last screen', e);
+    }
+  }
+
+  // User Feedback & Support Persistence
+  static loadFeedback(): FeedbackItem[] {
+    try {
+      const data = getStorage()?.getItem(FEEDBACK_KEY);
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.warn('Failed to load feedback from storage', e);
+    }
+    return [];
+  }
+
+  static saveFeedback(item: FeedbackItem): FeedbackItem[] {
+    try {
+      const existing = this.loadFeedback();
+      const updated = [item, ...existing];
+      getStorage()?.setItem(FEEDBACK_KEY, JSON.stringify(updated));
+      return updated;
+    } catch (e) {
+      console.warn('Failed to save feedback to storage', e);
+      return [];
+    }
+  }
+
+  static updateFeedbackStatus(id: string, status: FeedbackStatus): FeedbackItem[] {
+    try {
+      const existing = this.loadFeedback();
+      const updated = existing.map(f => f.id === id ? { ...f, status } : f);
+      getStorage()?.setItem(FEEDBACK_KEY, JSON.stringify(updated));
+      return updated;
+    } catch (e) {
+      console.warn('Failed to update feedback status', e);
+      return [];
+    }
+  }
+
+  static deleteFeedback(id: string): FeedbackItem[] {
+    try {
+      const existing = this.loadFeedback();
+      const updated = existing.filter(f => f.id !== id);
+      getStorage()?.setItem(FEEDBACK_KEY, JSON.stringify(updated));
+      return updated;
+    } catch (e) {
+      console.warn('Failed to delete feedback', e);
+      return [];
+    }
+  }
+
+  static clearAllFeedback(): void {
+    try {
+      getStorage()?.removeItem(FEEDBACK_KEY);
+    } catch (e) {
+      console.warn('Failed to clear all feedback', e);
     }
   }
 }

@@ -13,7 +13,8 @@ import {
   Radio,
   Trophy,
   Sun,
-  Moon
+  Moon,
+  MessageSquarePlus
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
@@ -24,6 +25,7 @@ export const Navbar: React.FC = () => {
     settings,
     toggleSound,
     setSettingsOpen,
+    setFeedbackModalOpen,
     resetAllGameData,
     auction,
     leagueMatches,
@@ -192,6 +194,17 @@ export const Navbar: React.FC = () => {
                 className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-amber-600 hover:border-amber-300 shadow-sm transition-colors"
               >
                 {settings.soundEnabled ? <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600" /> : <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400" />}
+              </button>
+
+              {/* Feedback Trigger */}
+              <button
+                type="button"
+                onClick={() => setFeedbackModalOpen(true)}
+                aria-label="Send feedback"
+                title="Send Feedback & Suggestions"
+                className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-amber-600 hover:border-amber-300 shadow-sm transition-colors cursor-pointer"
+              >
+                <MessageSquarePlus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600" />
               </button>
 
               {/* Settings Trigger */}

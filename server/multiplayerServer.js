@@ -190,6 +190,9 @@ function resolveCurrentLot(room) {
       buyerTeam.squad.push(currentLot);
     }
 
+    auction.phase = 'sold';
+    auction.timerSeconds = 0;
+
     auction.auctionHistory.unshift({
       player: currentLot,
       soldToTeamId: auction.highestBidderId,
@@ -208,6 +211,9 @@ function resolveCurrentLot(room) {
   } else {
     // Unsold
     currentLot.isUnsold = true;
+    auction.phase = 'unsold';
+    auction.timerSeconds = 0;
+
     auction.auctionHistory.unshift({
       player: currentLot,
       soldToTeamId: null,
@@ -225,49 +231,68 @@ function resolveCurrentLot(room) {
     });
   }
 
-  // Advance to next lot
-  auction.currentPlayerIndex += 1;
-  const nextPlayer = room.players[auction.currentPlayerIndex];
+  // Stop countdown ticker for the celebration popup
+  stopRoomAuctionTimer(room.roomCode);
 
-  if (nextPlayer) {
-    auction.currentPlayer = nextPlayer;
-    auction.currentBid = nextPlayer.basePrice;
-    auction.highestBidderId = null;
-    auction.highestBidderName = null;
-    auction.bidHistory = [];
-    auction.phase = 'bidding';
-    auction.timerSeconds = 10;
-    auction.totalPlayersAuctioned += 1;
+  // Broadcast SOLD / UNSOLD celebration event to all room participants immediately
+  broadcastToRoom(room.roomCode, {
+    type: 'AUCTION_SYNC',
+    payload: {
+      auctionState: auction,
+      teams: room.teams,
+      players: room.players
+    }
+  });
 
-    broadcastToRoom(room.roomCode, {
-      type: 'AUCTION_SYNC',
-      payload: {
-        auctionState: auction,
-        teams: room.teams,
-        players: room.players
-      }
-    });
+  // Hold winning / unsold celebration overlay for 2.4s so managers see who won the bid
+  setTimeout(() => {
+    const currentRoom = rooms.get(room.roomCode);
+    if (!currentRoom || currentRoom.status !== 'auction') return;
 
-    startRoomAuctionTimer(room);
-  } else {
-    // Auction Completed!
-    auction.phase = 'completed';
-    room.status = 'squad';
-    stopRoomAuctionTimer(room.roomCode);
+    // Advance to next lot
+    auction.currentPlayerIndex += 1;
+    const nextPlayer = currentRoom.players[auction.currentPlayerIndex];
 
-    broadcastToRoom(room.roomCode, {
-      type: 'ROOM_UPDATED',
-      payload: { room }
-    });
-    broadcastToRoom(room.roomCode, {
-      type: 'AUCTION_SYNC',
-      payload: {
-        auctionState: auction,
-        teams: room.teams,
-        players: room.players
-      }
-    });
-  }
+    if (nextPlayer) {
+      auction.currentPlayer = nextPlayer;
+      auction.currentBid = nextPlayer.basePrice;
+      auction.highestBidderId = null;
+      auction.highestBidderName = null;
+      auction.bidHistory = [];
+      auction.phase = 'bidding';
+      auction.timerSeconds = 10;
+      auction.totalPlayersAuctioned += 1;
+
+      broadcastToRoom(currentRoom.roomCode, {
+        type: 'AUCTION_SYNC',
+        payload: {
+          auctionState: auction,
+          teams: currentRoom.teams,
+          players: currentRoom.players
+        }
+      });
+
+      startRoomAuctionTimer(currentRoom);
+    } else {
+      // Auction Completed!
+      auction.phase = 'completed';
+      currentRoom.status = 'squad';
+      stopRoomAuctionTimer(currentRoom.roomCode);
+
+      broadcastToRoom(currentRoom.roomCode, {
+        type: 'ROOM_UPDATED',
+        payload: { room: currentRoom }
+      });
+      broadcastToRoom(currentRoom.roomCode, {
+        type: 'AUCTION_SYNC',
+        payload: {
+          auctionState: auction,
+          teams: currentRoom.teams,
+          players: currentRoom.players
+        }
+      });
+    }
+  }, 2400);
 }
 
 // WebSocket Connection Handlers

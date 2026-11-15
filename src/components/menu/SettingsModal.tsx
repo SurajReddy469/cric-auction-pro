@@ -1,12 +1,13 @@
 import React from 'react';
 import { Modal } from '../common/Modal';
 import { useGameStore } from '../../store/useGameStore';
-import { Volume2, VolumeX, Gauge, Zap, RotateCcw, Sun, Moon, Flame } from 'lucide-react';
+import { Volume2, VolumeX, Gauge, Zap, RotateCcw, Sun, Moon, Flame, MessageSquarePlus } from 'lucide-react';
 
 export const SettingsModal: React.FC = () => {
   const {
     isSettingsOpen,
     setSettingsOpen,
+    setFeedbackModalOpen,
     settings,
     updateSettings,
     setDataset,
@@ -187,8 +188,23 @@ export const SettingsModal: React.FC = () => {
           </div>
         </div>
 
-        {/* Reset Progress */}
+        {/* Feedback & Bug Reporting */}
         <div className="pt-2 border-t border-slate-200">
+          <button
+            type="button"
+            onClick={() => {
+              setSettingsOpen(false);
+              setFeedbackModalOpen(true);
+            }}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-amber-500/15 text-amber-900 border border-amber-300 text-xs font-black hover:bg-amber-500/25 transition-colors shadow-sm cursor-pointer"
+          >
+            <MessageSquarePlus className="w-4 h-4 text-amber-700" />
+            <span>Send Feedback & Report Suggestions</span>
+          </button>
+        </div>
+
+        {/* Reset Progress */}
+        <div className="pt-1">
           <button
             type="button"
             onClick={() => {

@@ -14,6 +14,7 @@ import { IPLSessionModal } from './components/session/IPLSessionModal';
 import { MultiplayerLobby } from './components/multiplayer/MultiplayerLobby';
 import { MultiplayerModal } from './components/multiplayer/MultiplayerModal';
 import { DisconnectPauseOverlay } from './components/multiplayer/DisconnectPauseOverlay';
+import { FeedbackModal } from './components/feedback/FeedbackModal';
 
 export const App: React.FC = () => {
   const { currentScreen, joinMultiplayerRoom, multiplayerRoom } = useGameStore();
@@ -67,6 +68,9 @@ export const App: React.FC = () => {
       {/* Online Multiplayer Modal & Reconnection Overlays */}
       <MultiplayerModal />
       <DisconnectPauseOverlay />
+
+      {/* User Feedback & Bug Reporting Modal */}
+      <FeedbackModal />
     </div>
   );
 };

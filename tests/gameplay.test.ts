@@ -148,4 +148,109 @@ describe('End-to-End Single-Player Game Lifecycle', () => {
     store.setScreen('auction');
     expect(useGameStore.getState().currentScreen).toBe('auction');
   });
+
+  it('Feedback System: submits feedback, persists to storage, updates status, and deletes', () => {
+    const store = useGameStore.getState();
+    store.clearAllFeedback();
+    expect(useGameStore.getState().feedbackList).toHaveLength(0);
+
+    // 1. Submit feedback
+    store.submitFeedback({
+      rating: 5,
+      category: 'feature',
+      userName: 'CricketFan99',
+      userEmail: 'fan@cricket.org',
+      message: 'Great auction simulation! Please add custom team jersey colors.',
+      context: {
+        userTeamName: 'Chennai Super Kings',
+        gameMode: 'singleplayer',
+        currentScreen: 'auction',
+      },
+    });
+
+    const listAfterSubmit = useGameStore.getState().feedbackList;
+    expect(listAfterSubmit).toHaveLength(1);
+    const fb = listAfterSubmit[0];
+    expect(fb.rating).toBe(5);
+    expect(fb.category).toBe('feature');
+    expect(fb.userName).toBe('CricketFan99');
+    expect(fb.status).toBe('new');
+
+    // 2. Update status to reviewed and resolved
+    store.updateFeedbackStatus(fb.id, 'reviewed');
+    expect(useGameStore.getState().feedbackList[0].status).toBe('reviewed');
+
+    store.updateFeedbackStatus(fb.id, 'resolved');
+    expect(useGameStore.getState().feedbackList[0].status).toBe('resolved');
+
+    // 3. Delete feedback
+    store.deleteFeedback(fb.id);
+    expect(useGameStore.getState().feedbackList).toHaveLength(0);
+  });
+
+  it('Sold Lot & Winning Bid: hammer falling triggers sold phase with buyer franchise and price', () => {
+    const store = useGameStore.getState();
+    store.startAuction();
+
+    const currentLot = useGameStore.getState().auction.currentPlayer;
+    expect(currentLot).toBeDefined();
+
+    // Place a bid by CSK
+    useGameStore.setState({
+      auction: {
+        ...useGameStore.getState().auction,
+        currentBid: 5.0,
+        highestBidderId: 'chennai-super-kings',
+        highestBidderName: 'Chennai Super Kings',
+        timerSeconds: 1,
+        phase: 'bidding',
+      },
+    });
+
+    // Tick the timer to 0 (hammer falls)
+    store.tickAuctionTimer();
+
+    const soldState = useGameStore.getState().auction;
+    expect(soldState.phase).toBe('sold');
+    expect(soldState.highestBidderId).toBe('chennai-super-kings');
+    expect(soldState.currentBid).toBe(5.0);
+    expect(soldState.currentPlayer?.isSold).toBe(true);
+    expect(soldState.currentPlayer?.soldToTeamId).toBe('chennai-super-kings');
+
+    // Verify buyer team squad acquired the player
+    const cskTeam = useGameStore.getState().teams.find(t => t.id === 'chennai-super-kings');
+    expect(cskTeam?.squad.some(p => p.id === currentLot!.id)).toBe(true);
+  });
+
+  it('Standing User Rule: strictly zero <section> JSX/HTML tags anywhere in codebase', () => {
+    const fs = require('fs');
+    const path = require('path');
+
+    function scanFiles(dir: string): string[] {
+      const files: string[] = [];
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory() && entry.name !== 'node_modules' && entry.name !== 'dist') {
+          files.push(...scanFiles(fullPath));
+        } else if (entry.isFile() && (entry.name.endsWith('.tsx') || entry.name.endsWith('.jsx'))) {
+          files.push(fullPath);
+        }
+      }
+      return files;
+    }
+
+    const componentFiles = [...scanFiles(path.resolve(__dirname, '../src')), ...scanFiles(path.resolve(__dirname, '../admin'))];
+    const violations: string[] = [];
+
+    const sectionRegex = /<\s*section[\s>]/i;
+    for (const f of componentFiles) {
+      const content = fs.readFileSync(f, 'utf-8');
+      if (sectionRegex.test(content)) {
+        violations.push(f);
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
 });

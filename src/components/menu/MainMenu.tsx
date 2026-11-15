@@ -14,7 +14,8 @@ import {
   Zap, 
   ArrowRight, 
   Sparkles, 
-  TrendingUp
+  TrendingUp,
+  MessageSquarePlus
 } from 'lucide-react';
 
 export const MainMenu: React.FC = () => {
@@ -31,6 +32,7 @@ export const MainMenu: React.FC = () => {
     activeSessionId,
     startAuction,
     settings,
+    setFeedbackModalOpen,
   } = useGameStore();
 
   const isDay = settings.theme === 'day';
@@ -466,6 +468,22 @@ export const MainMenu: React.FC = () => {
                 Host an online room to play exclusively against real friends with live bidding synchronization and zero bots.
               </p>
             </div>
+          </div>
+
+          {/* Quick Feedback Bar */}
+          <div className="mt-4 pt-3 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <span className="text-slate-400">Have suggestions, new player requests, or feedback?</span>
+            <button
+              type="button"
+              onClick={() => {
+                soundService.playClick();
+                setFeedbackModalOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/40 text-xs font-bold transition cursor-pointer"
+            >
+              <MessageSquarePlus className="w-3.5 h-3.5 text-amber-400" />
+              <span>Share Feedback</span>
+            </button>
           </div>
         </div>
 
