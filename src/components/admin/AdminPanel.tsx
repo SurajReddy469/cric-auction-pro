@@ -90,6 +90,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ standalone = false }) =>
     adminUpdateTeamPurse,
     adminUpdateTeamPersonality,
     adminUpdateTeamTrophies,
+    adminUpdateTeamLogo,
     adminTransferPlayer,
     adminReleasePlayer,
     adminUpdatePlayer,
@@ -978,6 +979,57 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ standalone = false }) =>
                         <button type="button" aria-label="Remove trophy" onClick={() => adminUpdateTeamTrophies(selectedTeam.id, Math.max(0, selectedTeam.trophies - 1))} className="h-6 w-6 rounded-md bg-slate-100 text-xs font-black text-slate-700">−</button>
                         <span className="min-w-5 text-center text-xs font-black text-slate-900">{selectedTeam.trophies}</span>
                         <button type="button" aria-label="Add trophy" onClick={() => adminUpdateTeamTrophies(selectedTeam.id, selectedTeam.trophies + 1)} className="h-6 w-6 rounded-md bg-slate-100 text-xs font-black text-slate-700">+</button>
+                      </div>
+                    </div>
+
+                    {/* Custom Team Logo */}
+                    <div className="rounded-lg bg-white p-2.5 border border-slate-200 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-bold text-slate-700 uppercase tracking-wider">Franchise Crest / Logo</span>
+                        {selectedTeam.logoUrl && (
+                          <button
+                            type="button"
+                            onClick={() => adminUpdateTeamLogo(selectedTeam.id, '')}
+                            className="text-[9px] font-bold text-rose-600 hover:text-rose-700 underline"
+                          >
+                            Reset to Default Crest
+                          </button>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <TeamBadge teamId={selectedTeam.id} size="sm" />
+                        <input
+                          type="url"
+                          placeholder="Paste Logo Image URL (PNG/SVG/WebP)"
+                          value={selectedTeam.logoUrl || ''}
+                          onChange={(e) => adminUpdateTeamLogo(selectedTeam.id, e.target.value)}
+                          className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-900 outline-none focus:border-amber-400 focus:bg-white"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 pt-1">
+                        <label className="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold transition-colors">
+                          <span>Upload from Device</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const reader = new FileReader();
+                              reader.onload = (event) => {
+                                const result = event.target?.result as string;
+                                if (result) {
+                                  adminUpdateTeamLogo(selectedTeam.id, result);
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                            }}
+                          />
+                        </label>
+                        <span className="text-[9px] text-slate-400 font-medium">PNG, SVG, or JPG</span>
                       </div>
                     </div>
                     <div className="flex gap-2">

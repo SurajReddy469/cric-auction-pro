@@ -52,4 +52,7 @@ export interface Team {
   // Career franchise trophies
   trophies: number;
   seasonTrophies: string[];
+
+  // Custom visual branding
+  logoUrl?: string;
 }

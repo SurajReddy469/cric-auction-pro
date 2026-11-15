@@ -160,6 +160,7 @@ export interface GameStoreState {
   adminUpdateTeamPurse: (teamId: string, newPurse: number) => void;
   adminUpdateTeamPersonality: (teamId: string, personality: AIPersonality) => void;
   adminUpdateTeamTrophies: (teamId: string, count: number) => void;
+  adminUpdateTeamLogo: (teamId: string, logoUrl: string) => void;
   adminTransferPlayer: (playerId: string, targetTeamId: string | null, price?: number) => void;
   adminReleasePlayer: (playerId: string) => void;
   adminUpdatePlayer: (playerId: string, updates: Partial<Player>) => void;
@@ -1910,6 +1911,17 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       saveCampaignState({ teams: updatedTeams });
     },
 
+    adminUpdateTeamLogo: (teamId: string, logoUrl: string) => {
+      const { teams } = get();
+      const trimmed = logoUrl.trim();
+      const updatedTeams = teams.map(t =>
+        t.id === teamId ? { ...t, logoUrl: trimmed || undefined } : t
+      );
+      set({ teams: updatedTeams });
+      saveCampaignState({ teams: updatedTeams });
+      notifyOtherTabs({ teamId, logoUrl: trimmed });
+    },
+
     adminTransferPlayer: (playerId: string, targetTeamId: string | null, price?: number) => {
       const { teams, players } = get();
       const player = players.find(p => p.id === playerId);
@@ -2384,6 +2396,11 @@ if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
         case 'SET_PERSONALITY':
           if (payload?.teamId && payload?.personality) {
             store.adminUpdateTeamPersonality(payload.teamId, payload.personality);
+          }
+          break;
+        case 'SET_TEAM_LOGO':
+          if (payload?.teamId && typeof payload?.logoUrl === 'string') {
+            store.adminUpdateTeamLogo(payload.teamId, payload.logoUrl);
           }
           break;
         case 'FORCE_SOLD':

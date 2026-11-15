@@ -1,18 +1,37 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useGameStore } from '../../store/useGameStore';
 
 interface TeamBadgeProps {
   teamId: string;
+  logoUrl?: string;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
 }
 
-export const TeamBadge: React.FC<TeamBadgeProps> = ({ teamId, size = 'md', className = '' }) => {
+export const TeamBadge: React.FC<TeamBadgeProps> = ({ teamId, logoUrl, size = 'md', className = '' }) => {
+  const [imgFailed, setImgFailed] = useState(false);
   const sizeMap = {
     sm: 'w-7 h-7 text-xs',
     md: 'w-10 h-10 text-sm',
     lg: 'w-16 h-16 text-xl',
     xl: 'w-24 h-24 text-3xl',
   };
+
+  const storeTeam = useGameStore(state => state.teams?.find(t => t.id === teamId));
+  const effectiveLogo = logoUrl || storeTeam?.logoUrl;
+
+  if (effectiveLogo && !imgFailed) {
+    return (
+      <div className={`inline-flex items-center justify-center relative flex-shrink-0 ${sizeMap[size]} ${className}`}>
+        <img
+          src={effectiveLogo}
+          alt={storeTeam?.shortName || teamId}
+          className="w-full h-full object-contain drop-shadow"
+          onError={() => setImgFailed(true)}
+        />
+      </div>
+    );
+  }
 
   const getTeamIcon = () => {
     switch (teamId) {
