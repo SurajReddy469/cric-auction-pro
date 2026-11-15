@@ -1,5 +1,6 @@
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
+import { randomUUID } from 'crypto';
 
 const PORT = process.env.PORT || 5175;
 
@@ -36,12 +37,38 @@ function generateRoomCode() {
   return code;
 }
 
+// Helper to generate secure random reconnect token
+function generateReconnectToken() {
+  return typeof randomUUID === 'function' 
+    ? randomUUID() 
+    : (Math.random().toString(36).substring(2) + Date.now().toString(36));
+}
+
+// Sanitizes participant objects to strip private reconnect tokens from public broadcasts
+function sanitizeParticipant(p) {
+  if (!p) return p;
+  const { reconnectToken: _rt, ...publicProps } = p;
+  return publicProps;
+}
+
+// Sanitizes full room state so that participant tokens are never leaked to other peers
+function sanitizeRoom(room) {
+  if (!room) return room;
+  return {
+    ...room,
+    participants: Array.isArray(room.participants) ? room.participants.map(sanitizeParticipant) : [],
+    disconnectedParticipant: room.disconnectedParticipant ? sanitizeParticipant(room.disconnectedParticipant) : undefined
+  };
+}
+
 // HTTP Server for health checks and diagnostics
 const server = createServer((req, res) => {
-  // Enable CORS
+  // Security headers & CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
@@ -60,30 +87,34 @@ const server = createServer((req, res) => {
     return;
   }
 
-  if (req.url === '/rooms') {
-    const list = Array.from(rooms.values()).map(r => ({
-      roomCode: r.roomCode,
-      roomName: r.roomName,
-      status: r.status,
-      playerCount: r.participants.length,
-      requiredPlayers: r.requiredPlayers,
-      isHumanOnly: true,
-      hasBots: false
-    }));
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(list));
-    return;
-  }
-
-  res.writeHead(404);
-  res.end('Not Found');
+  // Private room security: The /rooms endpoint has been removed to prevent unauthenticated enumeration of join codes.
+  res.writeHead(404, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ error: 'Not Found' }));
 });
 
 // WebSocket Server attached to HTTP server
 const wss = new WebSocketServer({ server });
 
 function broadcastToRoom(roomCode, message, excludeSocket = null) {
-  const data = JSON.stringify(message);
+  let sanitizedMessage = message;
+  if (message && message.payload && message.payload.room) {
+    sanitizedMessage = {
+      ...message,
+      payload: {
+        ...message.payload,
+        room: sanitizeRoom(message.payload.room)
+      }
+    };
+  } else if (message && message.payload && message.payload.disconnectedParticipant) {
+    sanitizedMessage = {
+      ...message,
+      payload: {
+        ...message.payload,
+        disconnectedParticipant: sanitizeParticipant(message.payload.disconnectedParticipant)
+      }
+    };
+  }
+  const data = JSON.stringify(sanitizedMessage);
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN && client.roomCode === roomCode && client !== excludeSocket) {
       client.send(data);
@@ -270,6 +301,7 @@ wss.on('connection', (ws) => {
             ? payload.hostTeamId
             : null;
 
+          const reconnectToken = generateReconnectToken();
           const hostParticipant = {
             id: participantId,
             name: payload.playerName || 'Host Manager',
@@ -278,7 +310,8 @@ wss.on('connection', (ws) => {
             isReady: false,
             isConnected: true,
             joinedAt: Date.now(),
-            lastHeartbeat: Date.now()
+            lastHeartbeat: Date.now(),
+            reconnectToken
           };
 
           const rawRequired = Number(payload.maxParticipants || payload.requiredPlayers);
@@ -317,7 +350,7 @@ wss.on('connection', (ws) => {
 
           ws.send(JSON.stringify({
             type: 'ROOM_CREATED',
-            payload: { room: newRoom, myParticipantId: participantId }
+            payload: { room: sanitizeRoom(newRoom), myParticipantId: participantId, reconnectToken }
           }));
           break;
         }
@@ -339,14 +372,17 @@ wss.on('connection', (ws) => {
             ? room.participants.find(p => p.id === payload.playerId)
             : null;
 
-          let participantId = existingParticipant 
-            ? existingParticipant.id 
-            : (payload.playerId && !room.participants.some(p => p.id === payload.playerId)
-                ? payload.playerId
-                : `player_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`);
-
           if (existingParticipant) {
-            // Reconnecting!
+            // Reconnect Security Check: Validate secret reconnect token
+            if (!payload.reconnectToken || payload.reconnectToken !== existingParticipant.reconnectToken) {
+              ws.send(JSON.stringify({
+                type: 'ERROR',
+                payload: { message: 'Unauthorized reconnection: Invalid or missing reconnect token for this participant.' }
+              }));
+              return;
+            }
+
+            // Reconnecting authorized participant!
             const previousSocket = Array.from(wss.clients).find(client =>
               client !== ws && client.readyState === WebSocket.OPEN &&
               client.roomCode === code && client.participantId === existingParticipant.id
@@ -356,7 +392,7 @@ wss.on('connection', (ws) => {
             existingParticipant.lastHeartbeat = Date.now();
 
             ws.roomCode = code;
-            ws.participantId = participantId;
+            ws.participantId = existingParticipant.id;
 
             // If room was paused waiting for this participant, unpause it!
             if (room.status === 'paused' && room.disconnectedParticipant?.id === existingParticipant.id) {
@@ -376,7 +412,7 @@ wss.on('connection', (ws) => {
 
             ws.send(JSON.stringify({
               type: 'ROOM_JOINED',
-              payload: { room, myParticipantId: participantId }
+              payload: { room: sanitizeRoom(room), myParticipantId: existingParticipant.id, reconnectToken: existingParticipant.reconnectToken }
             }));
 
             broadcastToRoom(code, { type: 'ROOM_UPDATED', payload: { room } });
@@ -384,6 +420,7 @@ wss.on('connection', (ws) => {
           }
 
           // New player joining
+          const participantId = `player_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
           const maxPlayers = room.requiredPlayers || 10;
           if (room.participants.length >= maxPlayers) {
             ws.send(JSON.stringify({
@@ -416,6 +453,7 @@ wss.on('connection', (ws) => {
             }
           }
 
+          const reconnectToken = generateReconnectToken();
           const newParticipant = {
             id: participantId,
             name: payload.playerName || `Manager ${room.participants.length + 1}`,
@@ -424,7 +462,8 @@ wss.on('connection', (ws) => {
             isReady: false,
             isConnected: true,
             joinedAt: Date.now(),
-            lastHeartbeat: Date.now()
+            lastHeartbeat: Date.now(),
+            reconnectToken
           };
 
           room.participants.push(newParticipant);
@@ -435,7 +474,7 @@ wss.on('connection', (ws) => {
 
           ws.send(JSON.stringify({
             type: 'ROOM_JOINED',
-            payload: { room, myParticipantId: participantId, teamConflictNotice }
+            payload: { room: sanitizeRoom(room), myParticipantId: participantId, reconnectToken, teamConflictNotice }
           }));
 
           broadcastToRoom(code, {
@@ -617,7 +656,17 @@ wss.on('connection', (ws) => {
             return;
           }
 
-          // Bid validation (allow opening bid at basePrice if no bids yet)
+          // Bid validation:
+          // 1. Opening bid must be at least the player's base price
+          if (!auction.highestBidderId && amount < auction.currentPlayer.basePrice) {
+            ws.send(JSON.stringify({
+              type: 'ERROR',
+              payload: { message: `Opening bid must be at least the base price of ₹${auction.currentPlayer.basePrice.toFixed(2)} Cr` }
+            }));
+            return;
+          }
+
+          // 2. Subsequent bids must strictly exceed current highest bid
           if (auction.highestBidderId && amount <= auction.currentBid) {
             ws.send(JSON.stringify({
               type: 'ERROR',

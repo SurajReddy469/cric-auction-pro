@@ -387,6 +387,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           StorageService.saveActiveMultiplayerSession({
             roomCode: code,
             playerName: options.playerName,
+            playerId: multiplayerService.getMyParticipantId(),
+            reconnectToken: multiplayerService.getReconnectToken() || undefined,
             timestamp: Date.now(),
           });
         }
@@ -408,6 +410,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         StorageService.saveActiveMultiplayerSession({
           roomCode,
           playerName,
+          playerId: multiplayerService.getMyParticipantId(),
+          reconnectToken: multiplayerService.getReconnectToken() || undefined,
           timestamp: Date.now(),
         });
         StorageService.saveLastScreen('multiplayer_lobby');
@@ -794,6 +798,14 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         const nextAmount = customAmount !== undefined 
           ? customAmount 
           : getNextBidAmount(auction.currentBid, auction.currentPlayer.basePrice);
+        if (!auction.highestBidderId && nextAmount < auction.currentPlayer.basePrice) {
+          alert(`Opening bid must be at least base price of ₹${auction.currentPlayer.basePrice.toFixed(2)} Cr!`);
+          return;
+        }
+        if (auction.highestBidderId && nextAmount <= auction.currentBid) {
+          alert(`Bid must exceed current bid of ₹${auction.currentBid.toFixed(2)} Cr!`);
+          return;
+        }
         multiplayerService.placeHumanBid(nextAmount);
         soundService.playBid();
         return;
@@ -809,6 +821,15 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       const nextAmount = customAmount !== undefined 
         ? customAmount 
         : getNextBidAmount(auction.currentBid, auction.currentPlayer.basePrice);
+
+      if (!auction.highestBidderId && nextAmount < auction.currentPlayer.basePrice) {
+        alert(`Opening bid must be at least base price of ₹${auction.currentPlayer.basePrice.toFixed(2)} Cr!`);
+        return;
+      }
+      if (auction.highestBidderId && nextAmount <= auction.currentBid) {
+        alert(`Bid must exceed current bid of ₹${auction.currentBid.toFixed(2)} Cr!`);
+        return;
+      }
 
       if (nextAmount > humanTeam.currentPurse) {
         alert('Insufficient purse to place this bid!');

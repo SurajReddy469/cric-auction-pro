@@ -18,6 +18,8 @@ const LAST_SCREEN_KEY = 'cric_auction_last_screen';
 export interface ActiveMultiplayerSession {
   roomCode: string;
   playerName: string;
+  playerId?: string;
+  reconnectToken?: string;
   timestamp: number;
 }
 

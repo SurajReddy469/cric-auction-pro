@@ -13,6 +13,7 @@ export interface RoomParticipant {
   isConnected: boolean;
   joinedAt: number;
   lastHeartbeat: number;
+  reconnectToken?: string;
 }
 
 export interface MultiplayerRoomState {
@@ -36,7 +37,7 @@ export interface MultiplayerRoomState {
 
 export type MultiplayerClientEvent =
   | { type: 'CREATE_ROOM'; payload: { roomName: string; playerName: string; requiredPlayers: number; purseCap: number; roomCode?: string } }
-  | { type: 'JOIN_ROOM'; payload: { roomCode: string; playerName: string; playerId?: string; teamId?: string } }
+  | { type: 'JOIN_ROOM'; payload: { roomCode: string; playerName: string; playerId?: string; teamId?: string; reconnectToken?: string } }
   | { type: 'CLAIM_TEAM'; payload: { teamId: string } }
   | { type: 'TOGGLE_READY'; payload: { isReady?: boolean } }
   | { type: 'START_AUCTION'; payload?: Record<string, never> }
@@ -47,8 +48,8 @@ export type MultiplayerClientEvent =
   | { type: 'RESUME_ROOM'; payload?: Record<string, never> };
 
 export type MultiplayerServerEvent =
-  | { type: 'ROOM_CREATED'; payload: { room: MultiplayerRoomState; myParticipantId: string } }
-  | { type: 'ROOM_JOINED'; payload: { room: MultiplayerRoomState; myParticipantId: string; teamConflictNotice?: { requestedTeamId: string; claimedByName: string } | null } }
+  | { type: 'ROOM_CREATED'; payload: { room: MultiplayerRoomState; myParticipantId: string; reconnectToken?: string } }
+  | { type: 'ROOM_JOINED'; payload: { room: MultiplayerRoomState; myParticipantId: string; reconnectToken?: string; teamConflictNotice?: { requestedTeamId: string; claimedByName: string } | null } }
   | { type: 'ROOM_UPDATED'; payload: { room: MultiplayerRoomState } }
   | { type: 'AUCTION_SYNC'; payload: { auctionState: AuctionState; teams: Team[]; players: Player[] } }
   | { type: 'ROOM_PAUSED'; payload: { reason: string; disconnectedParticipant: RoomParticipant; pauseExpiresAt: number } }

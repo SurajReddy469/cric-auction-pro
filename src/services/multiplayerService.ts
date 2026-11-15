@@ -20,6 +20,7 @@ class MultiplayerService {
   private serverUrl: string = '';
   private currentRoom: MultiplayerRoomState | null = null;
   private myParticipantId: string = '';
+  private reconnectToken: string | null = null;
   private heartbeatTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private pingInterval: ReturnType<typeof setInterval> | null = null;
@@ -38,6 +39,19 @@ class MultiplayerService {
   constructor() {
     this.serverUrl = this.resolveServerUrl();
     this.myParticipantId = this.loadOrInitPlayerId();
+    this.reconnectToken = typeof localStorage !== 'undefined' ? localStorage.getItem('cric_mp_reconnect_token') : null;
+  }
+
+  public getReconnectToken(): string | null {
+    return this.reconnectToken;
+  }
+
+  public setReconnectToken(token: string | null) {
+    this.reconnectToken = token;
+    if (typeof localStorage !== 'undefined') {
+      if (token) localStorage.setItem('cric_mp_reconnect_token', token);
+      else localStorage.removeItem('cric_mp_reconnect_token');
+    }
   }
 
   private resolveServerUrl(): string {
@@ -211,6 +225,9 @@ class MultiplayerService {
         this.currentRoom = message.payload.room;
         this.myParticipantId = message.payload.myParticipantId;
         this.lastTeamConflictNotice = null;
+        if (message.payload.reconnectToken) {
+          this.setReconnectToken(message.payload.reconnectToken);
+        }
         if (typeof localStorage !== 'undefined' && this.myParticipantId) {
           localStorage.setItem('cric_mp_player_id', this.myParticipantId);
         }
@@ -222,6 +239,9 @@ class MultiplayerService {
         this.currentRoom = message.payload.room;
         this.myParticipantId = message.payload.myParticipantId;
         this.lastTeamConflictNotice = message.payload.teamConflictNotice || null;
+        if (message.payload.reconnectToken) {
+          this.setReconnectToken(message.payload.reconnectToken);
+        }
         if (typeof localStorage !== 'undefined' && this.myParticipantId) {
           localStorage.setItem('cric_mp_player_id', this.myParticipantId);
         }
@@ -292,11 +312,12 @@ class MultiplayerService {
     return response;
   }
 
-  public async joinRoom(roomCode: string, playerName: string, teamId?: string): Promise<boolean> {
+  public async joinRoom(roomCode: string, playerName: string, teamId?: string, reconnectToken?: string): Promise<boolean> {
     if (!await this.connect()) {
       this.errorListeners.forEach(l => l(`Could not connect to multiplayer server at ${this.serverUrl}. Start the multiplayer server locally or configure VITE_MULTIPLAYER_WS_URL.`));
       return false;
     }
+    const token = reconnectToken || this.reconnectToken || (typeof localStorage !== 'undefined' ? localStorage.getItem('cric_mp_reconnect_token') : null) || undefined;
     const response = this.waitForRoomResponse();
     this.send({
       type: 'JOIN_ROOM',
@@ -305,6 +326,7 @@ class MultiplayerService {
         playerName,
         playerId: this.myParticipantId,
         teamId,
+        reconnectToken: token,
       }
     });
     return response;
@@ -376,6 +398,11 @@ class MultiplayerService {
       this.socket = null;
     }
     this.currentRoom = null;
+    this.reconnectToken = null;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('cric_mp_player_id');
+      localStorage.removeItem('cric_mp_reconnect_token');
+    }
     this.setConnectionStatus('disconnected');
   }
 

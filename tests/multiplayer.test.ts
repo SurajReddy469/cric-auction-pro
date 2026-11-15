@@ -73,6 +73,7 @@ describe('Multiplayer Human-Only System', () => {
   let guestClient: Awaited<ReturnType<typeof createClient>>;
   let additionalClients: Awaited<ReturnType<typeof createClient>>[] = [];
   let guestParticipantId: string;
+  let guestReconnectToken: string;
 
   beforeAll(async () => {
     const isRunning = await new Promise<boolean>((resolve) => {
@@ -147,6 +148,11 @@ describe('Multiplayer Human-Only System', () => {
     );
 
     expect(guestJoined).toBeDefined();
+    expect(guestJoined.payload.reconnectToken).toBeDefined();
+    expect(typeof guestJoined.payload.reconnectToken).toBe('string');
+    guestReconnectToken = guestJoined.payload.reconnectToken;
+    // Verify room broadcast does NOT leak reconnectToken to peers
+    expect(guestJoined.payload.room.participants[0].reconnectToken).toBeUndefined();
     expect(guestJoined.payload.room.participants.length).toBe(2);
 
     const guest = guestJoined.payload.room.participants.find((p: any) => p.name === 'Rohit Sharma');
@@ -395,7 +401,15 @@ describe('Multiplayer Human-Only System', () => {
   });
 
   it('5. Human-only bidding synchronizes across players and resets the countdown timer', async () => {
-    // Host places bid of 2.50 Cr
+    // Verify opening bid below base price (2.0 Cr) is rejected by server
+    hostClient.send({
+      type: 'PLACE_HUMAN_BID',
+      payload: { amount: 0.5 },
+    });
+    const bidError = await hostClient.waitForMessage((m) => m.type === 'ERROR');
+    expect(bidError.payload.message).toContain('Opening bid must be at least the base price');
+
+    // Host places valid opening bid of 2.50 Cr
     hostClient.send({
       type: 'PLACE_HUMAN_BID',
       payload: {
@@ -443,8 +457,22 @@ describe('Multiplayer Human-Only System', () => {
     expect(pauseMsg.payload.reason).toContain('Waiting for Rohit Sharma');
     expect(pauseMsg.payload.disconnectedParticipant?.name).toBe('Rohit Sharma');
 
-    // CRITICAL: Ensure NO bot replaced the disconnected player in the room!
-    // Connect new client as reconnecting guest using their persistent participantId
+    // SECURITY CHECK: An imposter attempting to reconnect using guestParticipantId WITHOUT the secret reconnect token is rejected
+    const imposterClient = await createClient('Imposter');
+    imposterClient.send({
+      type: 'JOIN_ROOM',
+      payload: {
+        roomCode,
+        playerName: 'Imposter Player',
+        playerId: guestParticipantId,
+        reconnectToken: 'invalid_unauthorized_token',
+      },
+    });
+    const imposterError = await imposterClient.waitForMessage((m) => m.type === 'ERROR');
+    expect(imposterError.payload.message).toContain('Unauthorized reconnection');
+    imposterClient.close();
+
+    // Legitimate client reconnects with their secret reconnectToken
     const reconnectedGuest = await createClient('ReconnectedGuest');
     reconnectedGuest.send({
       type: 'JOIN_ROOM',
@@ -452,6 +480,7 @@ describe('Multiplayer Human-Only System', () => {
         roomCode,
         playerName: 'Rohit Sharma',
         playerId: guestParticipantId,
+        reconnectToken: guestReconnectToken,
       },
     });
 
@@ -499,5 +528,11 @@ describe('Multiplayer Human-Only System', () => {
 
     // Restore singleplayer mode
     useGameStore.setState({ gameMode: 'singleplayer' });
+  });
+
+  it('8. Public /rooms endpoint is disabled to prevent room code enumeration', async () => {
+    const httpPort = process.env.TEST_MULTIPLAYER_PORT || 5175;
+    const res = await fetch(`http://localhost:${httpPort}/rooms`);
+    expect(res.status).toBe(404);
   });
 });
